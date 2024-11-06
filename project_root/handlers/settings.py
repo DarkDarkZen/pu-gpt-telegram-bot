@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 import logging
 from utils.logging_config import setup_logging, log_function_call
 import os
+import telegram.error
 
 # States for text model settings conversation
 (MAIN_MENU, MODEL_SETTINGS, BASE_URL, MODEL_SELECTION, 
@@ -95,25 +96,29 @@ class SettingsHandler:
         
         try:
             if isinstance(update, Update) and update.callback_query:
-                # If this is a callback query, edit the existing message
-                await update.callback_query.edit_message_text(
-                    text=text,
-                    reply_markup=reply_markup
-                )
+                try:
+                    await update.callback_query.edit_message_text(
+                        text=text,
+                        reply_markup=reply_markup
+                    )
+                except telegram.error.BadRequest as e:
+                    if "Message is not modified" not in str(e):
+                        raise
+                    # If message is the same, just answer the callback query
+                    await update.callback_query.answer()
             else:
-                # If this is a command, send a new message
                 await update.message.reply_text(
                     text=text,
                     reply_markup=reply_markup
                 )
         except Exception as e:
-            logger.error(f"Error in settings_menu: {e}", exc_info=True)
-            # Handle the error gracefully
-            error_message = "❌ Произошла ошибка при отображении настроек. Попробуйте еще раз /settings"
-            if isinstance(update, Update) and update.callback_query:
-                await update.callback_query.message.reply_text(error_message)
-            else:
-                await update.message.reply_text(error_message)
+            if "Message is not modified" not in str(e):
+                logger.error(f"Error in settings_menu: {e}", exc_info=True)
+                error_message = "❌ Произошла ошибка при отображении настроек. Попробуйте еще раз /settings"
+                if isinstance(update, Update) and update.callback_query:
+                    await update.callback_query.message.reply_text(error_message)
+                else:
+                    await update.message.reply_text(error_message)
         
         return MAIN_MENU
 
@@ -349,12 +354,15 @@ class SettingsHandler:
     @log_function_call(logger)
     async def cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Cancel the conversation"""
-        if update.callback_query:
-            query = update.callback_query
+        query = update.callback_query
+        if query:
             await query.answer()
-            await query.edit_message_text("❌ Настройка отменена")
-        else:
-            await update.message.reply_text("❌ Настройка отменена")
+            try:
+                await query.edit_message_text("Настройки закрыты")
+            except telegram.error.BadRequest as e:
+                if "Message is not modified" not in str(e):
+                    raise
+                # If message is the same, just close the conversation
         return ConversationHandler.END
 
     def get_conversation_handler(self):
