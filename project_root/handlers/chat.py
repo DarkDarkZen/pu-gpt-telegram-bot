@@ -9,12 +9,14 @@ import os
 from typing import Optional
 import aiohttp
 from io import BytesIO
+from utils.logging_config import setup_logging, log_function_call
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__, 'logs/chat.log')
 Session = init_db()
 
 class ChatHandler:
     def __init__(self):
+        logger.debug("Initializing ChatHandler")
         self.openai_client = AsyncOpenAI(
             api_key=os.getenv('OPENAI_API_KEY')
         )
@@ -35,8 +37,13 @@ class ChatHandler:
                 return None
             return user.image_settings
 
+    @log_function_call(logger)
     async def stream_openai_response(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle streaming chat response"""
+        user_id = update.effective_user.id
+        logger.info(f"Processing message from user {user_id}")
+        logger.debug(f"Message content: {update.message.text}")
+        
         # Initial response message
         response_message = await update.message.reply_text("⌛ Генерирую ответ...")
         collected_chunks = []

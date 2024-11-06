@@ -9,16 +9,15 @@ from handlers.history import HistoryHandler
 from telegram.ext import MessageHandler, filters
 from handlers.chat import ChatHandler
 import asyncio
+from utils.logging_config import setup_logging, log_function_call
+import json
 
 # Configure logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__, 'logs/bot.log')
 
 class TelegramBot:
     def __init__(self):
+        logger.debug("Initializing TelegramBot")
         load_dotenv()
         self.token = os.getenv('TELEGRAM_TOKEN')
         if not self.token:
@@ -39,7 +38,15 @@ class TelegramBot:
     
     async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle errors"""
-        logger.error(f"Exception while handling an update: {context.error}")
+        logger.error(
+            "Exception while handling an update:",
+            exc_info=context.error if DEBUG_MODE else False
+        )
+        
+        # Log update object in debug mode
+        if DEBUG_MODE:
+            logger.debug(f"Update object: {update}")
+            logger.debug(f"Context error: {context.error}")
         
         # Send message to user
         if update and update.effective_message:
@@ -104,6 +111,26 @@ class TelegramBot:
         )
         await update.message.reply_text(help_text)
 
+    async def debug_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /debug command - only works in debug mode"""
+        if not DEBUG_MODE:
+            await update.message.reply_text("Debug mode is disabled")
+            return
+        
+        user_id = update.effective_user.id
+        logger.debug(f"Debug command called by user {user_id}")
+        
+        debug_info = {
+            "user_id": user_id,
+            "chat_id": update.effective_chat.id,
+            "bot_info": await context.bot.get_me(),
+            "update_id": update.update_id,
+        }
+        
+        await update.message.reply_text(
+            f"Debug information:\n{json.dumps(debug_info, indent=2)}"
+        )
+
     def setup_handlers(self):
         """Setup all command and message handlers"""
         from telegram.ext import CommandHandler
@@ -126,6 +153,9 @@ class TelegramBot:
                 self.handle_message
             )
         )
+        
+        if DEBUG_MODE:
+            self.application.add_handler(CommandHandler("debug", self.debug_command))
         
     def run(self):
         """Run the bot in polling mode"""

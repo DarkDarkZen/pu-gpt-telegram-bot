@@ -25,6 +25,7 @@ the following parameters for images model:
 ## 8. confirmation dialogs for critical settings changes
 ## 9. Implement settings export/import functionality
 ## 10. Implement creating new images based on image and text input combined
+## 11. Implement all needed logging and debugging into the code base, so it could be easily turned off after the project is perfectly running in production and turned back on when it is necessairy to troubleshoot possible issues
 
 # Documenation
 ## Example of Procfile for Railway:

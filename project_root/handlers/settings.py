@@ -3,16 +3,18 @@ from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, Call
 from utils.database import User, UserSettings, init_db
 from sqlalchemy.orm import Session
 import logging
+from utils.logging_config import setup_logging, log_function_call
 
 # States for text model settings conversation
 (MAIN_MENU, MODEL_SETTINGS, BASE_URL, MODEL_SELECTION, 
  CUSTOM_MODEL, TEMPERATURE, MAX_TOKENS, ASSISTANT_URL) = range(8)
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__, 'logs/settings.log')
 Session = init_db()
 
 class SettingsHandler:
     def __init__(self):
+        logger.debug("Initializing SettingsHandler")
         self.available_models = {
             "gpt-3.5-turbo": "GPT-3.5 Turbo",
             "gpt-4": "GPT-4",
@@ -20,38 +22,46 @@ class SettingsHandler:
             "claude-3-sonnet": "Claude-3 Sonnet"
         }
 
-    async def get_or_create_settings(self, user_id: int) -> UserSettings:
+    @log_function_call(logger)
+    async def get_or_create_settings(self, user_id: int) -> dict:
         """Get or create user settings"""
-        with Session() as session:
-            user = session.query(User).filter_by(telegram_id=user_id).first()
-            if not user:
-                user = User(telegram_id=user_id)
-                session.add(user)
-                session.commit()
-            
-            settings = session.query(UserSettings).filter_by(user_id=user.id).first()
-            if not settings:
-                settings = UserSettings(user_id=user.id)
-                session.add(settings)
-                session.commit()
-            
-            # Refresh the session to ensure all attributes are loaded
-            session.refresh(settings)
-            
-            # Create a dictionary of settings values
-            settings_dict = {
-                'base_url': settings.base_url,
-                'model': settings.model,
-                'temperature': settings.temperature,
-                'max_tokens': settings.max_tokens,
-                'use_assistant': settings.use_assistant,
-                'assistant_url': settings.assistant_url
-            }
-        
-        return settings_dict
+        try:
+            with Session() as session:
+                user = session.query(User).filter_by(telegram_id=user_id).first()
+                if not user:
+                    user = User(telegram_id=user_id)
+                    session.add(user)
+                    session.commit()
+                
+                settings = session.query(UserSettings).filter_by(user_id=user.id).first()
+                if not settings:
+                    settings = UserSettings(user_id=user.id)
+                    session.add(settings)
+                    session.commit()
+                
+                # Refresh the session to ensure all attributes are loaded
+                session.refresh(settings)
+                
+                # Create a dictionary of settings values
+                settings_dict = {
+                    'base_url': settings.base_url,
+                    'model': settings.model,
+                    'temperature': settings.temperature,
+                    'max_tokens': settings.max_tokens,
+                    'use_assistant': settings.use_assistant,
+                    'assistant_url': settings.assistant_url
+                }
+                logger.debug(f"Settings for user {user_id}: {settings_dict}")
+                return settings_dict
+        except Exception as e:
+            logger.error(f"Error getting settings for user {user_id}: {e}", exc_info=True)
+            raise
 
+    @log_function_call(logger)
     async def settings_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show main settings menu"""
+        user_id = update.effective_user.id
+        logger.info(f"Showing settings menu for user {user_id}")
         keyboard = [
             [InlineKeyboardButton("📝 Базовый URL", callback_data="edit_base_url")],
             [InlineKeyboardButton("🤖 Выбор модели", callback_data="select_model")],
@@ -78,6 +88,7 @@ class SettingsHandler:
             await update.edit_message_text(text, reply_markup=reply_markup)
         return MAIN_MENU
 
+    @log_function_call(logger)
     async def model_selection(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show model selection menu"""
         query = update.callback_query
@@ -94,6 +105,7 @@ class SettingsHandler:
         await query.edit_message_text("Выберите модель:", reply_markup=reply_markup)
         return MODEL_SELECTION
 
+    @log_function_call(logger)
     async def handle_model_selection(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle model selection"""
         query = update.callback_query
@@ -107,6 +119,7 @@ class SettingsHandler:
         
         return await self.settings_menu(query, context)
 
+    @log_function_call(logger)
     async def temperature_selection(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show temperature selection menu"""
         query = update.callback_query
@@ -125,6 +138,7 @@ class SettingsHandler:
         )
         return TEMPERATURE
 
+    @log_function_call(logger)
     async def handle_base_url(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle base URL input"""
         user_id = update.effective_user.id
@@ -138,6 +152,7 @@ class SettingsHandler:
         await update.message.reply_text(f"✅ Base URL обновлен на: {new_url}")
         return await self.settings_menu(update, context)
 
+    @log_function_call(logger)
     async def handle_temperature(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle temperature selection"""
         query = update.callback_query
@@ -151,6 +166,7 @@ class SettingsHandler:
         
         return await self.settings_menu(query, context)
 
+    @log_function_call(logger)
     async def handle_max_tokens(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle max tokens input"""
         try:
@@ -170,6 +186,7 @@ class SettingsHandler:
             await update.message.reply_text("⚠️ Пожалуйста, введите целое число")
             return MAX_TOKENS
 
+    @log_function_call(logger)
     async def handle_assistant_url(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle AI assistant URL input"""
         user_id = update.effective_user.id
@@ -184,6 +201,7 @@ class SettingsHandler:
         await update.message.reply_text(f"✅ URL ассистента установлен: {assistant_url}")
         return await self.settings_menu(update, context)
 
+    @log_function_call(logger)
     async def handle_custom_model(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle custom model input"""
         model_name = update.message.text
@@ -196,6 +214,7 @@ class SettingsHandler:
         await update.message.reply_text(f"✅ Модель установлена: {model_name}")
         return await self.settings_menu(update, context)
 
+    @log_function_call(logger)
     async def handle_base_url_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start base URL input process"""
         query = update.callback_query
@@ -203,6 +222,7 @@ class SettingsHandler:
         await query.edit_message_text("Введите новый Base URL:")
         return BASE_URL
 
+    @log_function_call(logger)
     async def handle_max_tokens_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start max tokens input process"""
         query = update.callback_query
@@ -210,6 +230,7 @@ class SettingsHandler:
         await query.edit_message_text("Введите максимальное количество токенов (минимум 150):")
         return MAX_TOKENS
 
+    @log_function_call(logger)
     async def handle_assistant_url_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start assistant URL input process"""
         query = update.callback_query
@@ -217,6 +238,7 @@ class SettingsHandler:
         await query.edit_message_text("Введите URL ассистента:")
         return ASSISTANT_URL
 
+    @log_function_call(logger)
     async def handle_custom_model_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start custom model input process"""
         query = update.callback_query
@@ -224,6 +246,7 @@ class SettingsHandler:
         await query.edit_message_text("Введите название модели:")
         return CUSTOM_MODEL
 
+    @log_function_call(logger)
     async def cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Cancel the conversation"""
         if update.callback_query:
