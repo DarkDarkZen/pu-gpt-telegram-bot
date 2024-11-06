@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, Call
 from utils.database import User, ImageSettings, init_db
 from sqlalchemy.orm import Session
 import logging
+import telegram.error
 
 # States for image settings conversation
 (IMAGE_MAIN_MENU, IMAGE_BASE_URL, IMAGE_MODEL, 
@@ -105,18 +106,27 @@ class ImageSettingsHandler:
         
         try:
             if isinstance(update, Update) and update.callback_query:
-                await update.callback_query.edit_message_text(text=text, reply_markup=reply_markup)
+                try:
+                    await update.callback_query.edit_message_text(text=text, reply_markup=reply_markup)
+                except telegram.error.BadRequest as e:
+                    if "Message is not modified" not in str(e):
+                        raise
             elif isinstance(update, CallbackQuery):
-                await update.edit_message_text(text=text, reply_markup=reply_markup)
+                try:
+                    await update.edit_message_text(text=text, reply_markup=reply_markup)
+                except telegram.error.BadRequest as e:
+                    if "Message is not modified" not in str(e):
+                        raise
             else:
                 await update.message.reply_text(text=text, reply_markup=reply_markup)
         except Exception as e:
-            logger.error(f"Error in image_settings_menu: {e}", exc_info=True)
-            error_message = "❌ Произошла ошибка при отображении настроек. Попробуйте еще раз /image_settings"
-            if isinstance(update, (Update, CallbackQuery)) and hasattr(update, 'callback_query'):
-                await update.callback_query.message.reply_text(error_message)
-            else:
-                await update.message.reply_text(error_message)
+            if "Message is not modified" not in str(e):
+                logger.error(f"Error in image_settings_menu: {e}", exc_info=True)
+                error_message = "❌ Произошла ошибка при отображении настроек. Попробуйте еще раз /image_settings"
+                if isinstance(update, (Update, CallbackQuery)) and hasattr(update, 'callback_query'):
+                    await update.callback_query.message.reply_text(error_message)
+                else:
+                    await update.message.reply_text(error_message)
         
         return IMAGE_MAIN_MENU
 
@@ -241,6 +251,7 @@ class ImageSettingsHandler:
                     CallbackQueryHandler(self.select_image_quality, pattern="^select_image_quality$"),
                     CallbackQueryHandler(self.select_image_style, pattern="^select_image_style$"),
                     CallbackQueryHandler(self.toggle_hdr, pattern="^toggle_hdr$"),
+                    CallbackQueryHandler(self.cancel, pattern="^close_image_settings$"),
                 ],
                 IMAGE_MODEL: [
                     CallbackQueryHandler(self.handle_setting_update, pattern="^set_model_"),
@@ -259,7 +270,7 @@ class ImageSettingsHandler:
                     CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_menu$"),
                 ],
             },
-            fallbacks=[CallbackQueryHandler(self.image_settings_menu, pattern="^close_image_settings$")],
+            fallbacks=[CallbackQueryHandler(self.cancel, pattern="^close_image_settings$")],
             allow_reentry=True,
             name="image_settings_conversation",
             persistent=True,
@@ -268,3 +279,10 @@ class ImageSettingsHandler:
             per_message=False,
             conversation_timeout=300  # 5 minutes timeout
         ) 
+
+    async def cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Cancel and close settings menu"""
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text("Настройки изображений закрыты")
+        return ConversationHandler.END
