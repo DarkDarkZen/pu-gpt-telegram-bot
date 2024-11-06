@@ -5,7 +5,7 @@
         "buildCommand": "pip install --no-cache-dir -r requirements.txt"
     },
     "deploy": {
-        "startCommand": "PYTHONPATH=$PYTHONPATH:. python api/main.py",
+        "startCommand": "PYTHONPATH=$PYTHONPATH:/app/src python src/main.py",
         "restartPolicyType": "ON_FAILURE",
         "restartPolicyMaxRetries": 10
     }

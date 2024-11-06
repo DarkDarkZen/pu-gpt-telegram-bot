@@ -9,4 +9,7 @@ authors = [
     {name = "Your Name"}
 ]
 description = "GPT Telegram Bot"
-requires-python = ">=3.11" 
+requires-python = ">=3.11"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
