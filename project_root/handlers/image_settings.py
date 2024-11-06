@@ -221,6 +221,5 @@ class ImageSettingsHandler:
             allow_reentry=True,
             name="image_settings_conversation",
             per_chat=True,
-            per_user=True,
-            per_message=True
+            per_user=True
         ) 

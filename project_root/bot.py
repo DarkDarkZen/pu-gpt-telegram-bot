@@ -42,9 +42,7 @@ class TelegramBot:
         self.chat_handler = ChatHandler()
         
         self._running = False
-        
-        # Add error handler
-        self.application.add_error_handler(self.error_handler)
+        self._offset = None
     
     async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle errors"""
@@ -67,9 +65,15 @@ class TelegramBot:
     async def stop(self):
         """Stop the bot"""
         if self._running:
-            await self.application.stop()
-            await self.application.shutdown()
-            self._running = False
+            logger.info("Stopping bot...")
+            try:
+                await self.application.stop()
+                await self.application.shutdown()
+            except Exception as e:
+                logger.error(f"Error stopping bot: {e}")
+            finally:
+                self._running = False
+                logger.info("Bot stopped")
     
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
@@ -174,7 +178,11 @@ class TelegramBot:
                 logger.info("Starting bot...")
                 self.setup_handlers()
                 self._running = True
-                self.application.run_polling(allowed_updates=True)
+                self.application.run_polling(
+                    allowed_updates=True,
+                    drop_pending_updates=True,
+                    close_loop=False
+                )
         except Exception as e:
             logger.error(f"Error running bot: {e}")
             self._running = False

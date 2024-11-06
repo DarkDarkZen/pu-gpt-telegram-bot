@@ -340,6 +340,5 @@ class SettingsHandler:
             allow_reentry=True,
             name="settings_conversation",
             per_chat=True,
-            per_user=True,
-            per_message=True
+            per_user=True
         )
