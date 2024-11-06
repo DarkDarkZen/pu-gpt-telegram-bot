@@ -35,18 +35,22 @@ class TelegramBot:
         if not self.token:
             raise ValueError("TELEGRAM_TOKEN not found in environment variables")
         
-        # Initialize persistence
+        # Initialize persistence and job queue
         persistence = PicklePersistence(
             filepath="data/conversation_data",
-            update_interval=30  # Save every 30 seconds
+            update_interval=30
         )
             
         self.application = (
             Application.builder()
             .token(self.token)
             .persistence(persistence)
+            .concurrent_updates(True)
             .build()
         )
+        
+        # Initialize job queue
+        self.application.job_queue.scheduler.start()
         
         # Initialize handlers
         self.settings_handler = SettingsHandler()
@@ -83,6 +87,10 @@ class TelegramBot:
         if self._running:
             logger.info("Stopping bot...")
             try:
+                # Stop job queue
+                if self.application.job_queue:
+                    self.application.job_queue.scheduler.shutdown(wait=True)
+                # Stop application
                 await self.application.stop()
                 await self.application.shutdown()
             except Exception as e:

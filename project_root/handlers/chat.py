@@ -23,13 +23,39 @@ class ChatHandler:
             api_key=os.getenv('OPENAI_API_KEY')
         )
 
-    async def get_user_settings(self, user_id: int) -> UserSettings:
+    async def get_user_settings(self, user_id: int) -> dict:
         """Get user settings"""
         with Session() as session:
             user = session.query(User).filter_by(telegram_id=user_id).first()
-            if not user or not user.settings:
-                return None
-            return user.settings
+            if not user:
+                # Create user if doesn't exist
+                user = User(telegram_id=user_id)
+                session.add(user)
+                session.commit()
+            
+            settings = session.query(UserSettings).filter_by(user_id=user.id).first()
+            if not settings:
+                # Create default settings if don't exist
+                settings = UserSettings(
+                    user_id=user.id,
+                    base_url="https://api.openai.com/v1",
+                    model="gpt-3.5-turbo",
+                    temperature=0.7,
+                    max_tokens=1000,
+                    use_assistant=False
+                )
+                session.add(settings)
+                session.commit()
+                session.refresh(settings)
+            
+            return {
+                'base_url': settings.base_url,
+                'model': settings.model,
+                'temperature': settings.temperature,
+                'max_tokens': settings.max_tokens,
+                'use_assistant': settings.use_assistant,
+                'assistant_url': settings.assistant_url
+            }
 
     async def get_image_settings(self, user_id: int) -> Optional[ImageSettings]:
         """Get user's image settings"""
@@ -52,26 +78,23 @@ class ChatHandler:
         last_message = ""
         
         try:
-            # Get user settings
+            # Get user settings (will create default settings if none exist)
             settings = await self.get_user_settings(update.effective_user.id)
-            if not settings:
-                await response_message.edit_text("⚠️ Пожалуйста, настройте параметры модели через /settings")
-                return
-
-            if settings.use_assistant and settings.assistant_url:
+            
+            # Configure OpenAI client with user settings
+            self.openai_client.base_url = settings['base_url']
+            
+            if settings['use_assistant'] and settings['assistant_url']:
                 # TODO: Implement custom assistant API call
                 await response_message.edit_text("🤖 Режим ассистента пока не реализован")
                 return
-
-            # Configure OpenAI client with user settings
-            self.openai_client.base_url = settings.base_url
             
             # Start streaming response
             stream = await self.openai_client.chat.completions.create(
-                model=settings.model,
+                model=settings['model'],
                 messages=[{"role": "user", "content": update.message.text}],
-                temperature=settings.temperature,
-                max_tokens=settings.max_tokens,
+                temperature=settings['temperature'],
+                max_tokens=settings['max_tokens'],
                 stream=True
             )
             
@@ -183,7 +206,7 @@ class ChatHandler:
             settings = await self.get_image_settings(update.effective_user.id)
             if not settings:
                 await response_message.edit_text(
-                    "⚠️ Пожалуйста, настройте ��араметры генерации изображений через /image_settings"
+                    "⚠️ Пожалуйста, настройте араметры генерации изображений через /image_settings"
                 )
                 return
 
