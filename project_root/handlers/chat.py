@@ -216,7 +216,7 @@ class ChatHandler:
             settings = await self.get_image_settings(update.effective_user.id)
             if not settings:
                 await response_message.edit_text(
-                    "⚠️ Пожалуйста, настройте араметры генерации изображений через /image_settings"
+                    "⚠️ Пожалуйста, настройте параметры генерации изображений через /image_settings"
                 )
                 return
 
@@ -225,10 +225,15 @@ class ChatHandler:
             
             # Download the photo
             photo_file = await context.bot.get_file(photo.file_id)
+            photo_bytes = await photo_file.download_as_bytearray()
+            
+            # Convert bytearray to BytesIO
+            image_data = BytesIO(photo_bytes)
+            image_data.name = 'image.png'  # OpenAI needs a filename
             
             # Generate variation
             response = await self.openai_client.images.create_variation(
-                image=await photo_file.download_as_bytearray(),
+                image=image_data,  # Pass BytesIO object instead of bytearray
                 model=settings.model,
                 n=1,
                 size=settings.size
@@ -247,14 +252,14 @@ class ChatHandler:
                         await response_message.edit_text("❌ Не удалось загрузить вариацию")
                         return
                     
-                    image_data = await resp.read()
+                    variation_data = await resp.read()
                     
             # Delete the "generating" message
             await response_message.delete()
             
             # Send the variation
             await update.message.reply_photo(
-                photo=BytesIO(image_data),
+                photo=BytesIO(variation_data),
                 caption="🎨 Вариация изображения"
             )
             
