@@ -259,18 +259,59 @@ class ImageSettingsHandler:
             await query.message.reply_text("❌ Произошла ошибка при обновлении настроек")
             return await self.image_settings_menu(query, context)
 
+    async def handle_base_url_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start base URL input process"""
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text("Введите новый Base URL для модели изображений:")
+        return IMAGE_BASE_URL
+
+    async def handle_base_url(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle base URL input"""
+        new_url = update.message.text
+        
+        try:
+            with Session() as session:
+                user = session.query(User).filter_by(telegram_id=update.effective_user.id).first()
+                if not user:
+                    user = User(telegram_id=update.effective_user.id)
+                    session.add(user)
+                    session.commit()
+                
+                settings = session.query(ImageSettings).filter_by(user_id=user.id).first()
+                if not settings:
+                    settings = ImageSettings(user_id=user.id)
+                    session.add(settings)
+                
+                settings.base_url = new_url
+                session.commit()
+                logger.debug(f"Updated base URL to {new_url} for user {update.effective_user.id}")
+            
+            await update.message.reply_text(f"✅ Base URL обновлен на: {new_url}")
+            return await self.image_settings_menu(update, context)
+            
+        except Exception as e:
+            logger.error(f"Error updating base URL: {e}", exc_info=True)
+            await update.message.reply_text("❌ Произошла ошибка при обновлении Base URL")
+            return await self.image_settings_menu(update, context)
+
     def get_conversation_handler(self):
         """Return conversation handler for image settings"""
         return ConversationHandler(
             entry_points=[CommandHandler('image_settings', self.image_settings_menu)],
             states={
                 IMAGE_MAIN_MENU: [
+                    CallbackQueryHandler(self.handle_base_url_start, pattern="^edit_image_base_url$"),
                     CallbackQueryHandler(self.select_image_model, pattern="^select_image_model$"),
                     CallbackQueryHandler(self.select_image_size, pattern="^select_image_size$"),
                     CallbackQueryHandler(self.select_image_quality, pattern="^select_image_quality$"),
                     CallbackQueryHandler(self.select_image_style, pattern="^select_image_style$"),
                     CallbackQueryHandler(self.toggle_hdr, pattern="^toggle_hdr$"),
                     CallbackQueryHandler(self.cancel, pattern="^close_image_settings$"),
+                ],
+                IMAGE_BASE_URL: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_base_url),
+                    CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_menu$"),
                 ],
                 IMAGE_MODEL: [
                     CallbackQueryHandler(self.handle_setting_update, pattern="^set_model_"),
