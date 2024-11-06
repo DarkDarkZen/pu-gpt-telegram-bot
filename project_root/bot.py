@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import Application, ContextTypes
+from telegram.ext import Application, ContextTypes, PicklePersistence
 from dotenv import load_dotenv
 import os
 import logging
@@ -25,15 +25,28 @@ class TelegramBot:
         try:
             # Create logs directory if it doesn't exist
             os.makedirs(LOGS_DIR, exist_ok=True)
+            # Create data directory for persistence
+            os.makedirs('data', exist_ok=True)
         except Exception as e:
-            logger.warning(f"Could not create logs directory: {e}")
+            logger.warning(f"Could not create directories: {e}")
         
         load_dotenv()
         self.token = os.getenv('TELEGRAM_TOKEN')
         if not self.token:
             raise ValueError("TELEGRAM_TOKEN not found in environment variables")
+        
+        # Initialize persistence
+        persistence = PicklePersistence(
+            filepath="data/conversation_data",
+            update_interval=30  # Save every 30 seconds
+        )
             
-        self.application = Application.builder().token(self.token).build()
+        self.application = (
+            Application.builder()
+            .token(self.token)
+            .persistence(persistence)
+            .build()
+        )
         
         # Initialize handlers
         self.settings_handler = SettingsHandler()
@@ -43,6 +56,9 @@ class TelegramBot:
         
         self._running = False
         self._offset = None
+        
+        # Add error handler
+        self.application.add_error_handler(self.error_handler)
     
     async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle errors"""
