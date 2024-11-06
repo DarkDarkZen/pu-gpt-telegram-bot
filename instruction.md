@@ -2,6 +2,7 @@
 GPT Telegram bot which can work with text and images (all of these can be input and output)
 
 # Core Functionalities
+## 0. Bot should be deployed on railway.app and should work in polling mode
 ## 1. Bot should support openai streaming mode
 ## 2. Bot can be added into telegram groups
 ## 3. Bot should support user id's and can store user message history
@@ -14,12 +15,51 @@ the following parameters for text model:
 -- There should be an option to use for text messages a pre-configured AI-assitant by providing uri of API end point. This should be instead of a GPT text model. When user choses AI-assitant in GPT text model settings it should overwrite GPT text model settings and all text questions should be handled by AI-assitant via API end point provided.
 ## 5. There should be a settings panel, so one can edit 
 the following parameters for images model:
--- base url of openai compatible image model
--- model itself (either chose from the short list of most popular openai image models or enter manually the name of the model)
--- all Key Parameters and Features of image model
+### base url of openai compatible image model
+### model itself (either chose from the short list of most popular llm image models or enter manually the name of the model)
+### all Key Parameters and Features of image model
+### handlers for each image setting (base_url, model, size, quality, style, hdr)
+### get_image_settings and update_image_settings methods
 ## 6. There should be an option to clear message history for a user
+## 7. validation for user inputs
+## 8. confirmation dialogs for critical settings changes
+## 9. Implement settings export/import functionality
+## 10. Implement creating new images based on image and text input combined
 
 # Documenation
+## Example of Procfile for Railway:
+```
+worker: python bot.py
+
+```
+
+## Example of Railway configuration file:
+```
+{
+    "$schema": "https://railway.app/railway.schema.json",
+    "build": {
+        "builder": "NIXPACKS"
+    },
+    "deploy": {
+        "startCommand": "python bot.py",
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+    }
+}
+```
+
+## Example of simple status endpoint for railway.app deployment
+```
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+
+app = FastAPI()
+
+@app.get("/health")
+async def health_check():
+    return JSONResponse({"status": "healthy"})
+```
+
 ## Example of support openai streaming mode
 ```
 from telegram import Update
@@ -1033,7 +1073,22 @@ bot = Bot(token="YOUR_BOT_TOKEN", db_path="user_history.db")
 ```
 
 # Project files structure
-1. config.py - Configuration and environment variables
-2. models.py - Model settings and data classes
-3. bot.py - Main bot implementation and handlers
-4. utils.py - Helper functions and utilities
+project_root/
+│
+├── main.py              # Entry point for Railway
+├── bot.py               # Main bot logic
+├── api.py               # FastAPI health check endpoint
+├── handlers/
+│   ├── __init__.py
+│   ├── settings.py      # Settings handlers
+│   ├── history.py       # History handlers
+│   └── group.py         # Group handlers
+│
+├── utils/
+│   ├── __init__.py
+│   ├── database.py      # Database models and operations
+│   └── helpers.py       # Common utilities and helper functions
+│
+├── requirements.txt     # Must include Railway-specific packages
+├── Procfile            # Railway process definition
+└── railway.json        # Railway configuration
