@@ -1,5 +1,11 @@
+import sys
+import os
 import logging
-from bot import GPTBot
+
+# Add parent directory to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from bot.bot import GPTBot
 
 # Configure logging
 logging.basicConfig(
