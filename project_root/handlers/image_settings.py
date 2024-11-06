@@ -191,12 +191,31 @@ class ImageSettingsHandler:
         query = update.callback_query
         await query.answer()
         
-        with Session() as session:
-            settings = await self.get_or_create_settings(query.from_user.id)
-            settings['hdr'] = not settings['hdr']
-            session.commit()
-        
-        return await self.image_settings_menu(query, context)
+        try:
+            with Session() as session:
+                user = session.query(User).filter_by(telegram_id=query.from_user.id).first()
+                if not user:
+                    user = User(telegram_id=query.from_user.id)
+                    session.add(user)
+                    session.commit()
+                
+                settings = session.query(ImageSettings).filter_by(user_id=user.id).first()
+                if not settings:
+                    settings = ImageSettings(user_id=user.id)
+                    session.add(settings)
+                
+                # Toggle HDR setting
+                settings.hdr = not settings.hdr
+                session.commit()
+                logger.debug(f"Toggled HDR to {settings.hdr} for user {query.from_user.id}")
+            
+            # Return to the main menu with updated settings
+            return await self.image_settings_menu(query, context)
+            
+        except Exception as e:
+            logger.error(f"Error toggling HDR: {e}", exc_info=True)
+            await query.message.reply_text("❌ Произошла ошибка при изменении настройки HDR")
+            return await self.image_settings_menu(query, context)
 
     async def handle_setting_update(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle settings updates"""
