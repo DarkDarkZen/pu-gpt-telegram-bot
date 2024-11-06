@@ -15,7 +15,7 @@ class BotConfig:
     OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
     
     # Database Configuration
-    DATABASE_URL: str = os.getenv("POSTGRES_URL", "")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///bot.db")
     
     # Default Model Settings
     DEFAULT_TEXT_MODEL: str = "gpt-3.5-turbo"
@@ -32,7 +32,5 @@ class BotConfig:
             raise ValueError("TELEGRAM_TOKEN is required")
         if not self.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is required")
-        if not self.DATABASE_URL:
-            raise ValueError("DATABASE_URL is required")
 
 config = BotConfig() 
