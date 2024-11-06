@@ -302,5 +302,7 @@ class SettingsHandler:
                 CommandHandler('cancel', self.cancel),
             ],
             allow_reentry=True,
-            name="settings_conversation"
+            name="settings_conversation",
+            per_chat=True,
+            per_user=True
         )

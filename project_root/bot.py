@@ -9,7 +9,7 @@ from handlers.history import HistoryHandler
 from telegram.ext import MessageHandler, filters
 from handlers.chat import ChatHandler
 import asyncio
-from utils.logging_config import setup_logging, log_function_call
+from utils.logging_config import setup_logging, log_function_call, DEBUG_MODE
 import json
 from pathlib import Path
 

@@ -219,5 +219,7 @@ class ImageSettingsHandler:
             },
             fallbacks=[CallbackQueryHandler(self.image_settings_menu, pattern="^close_image_settings$")],
             allow_reentry=True,
-            name="image_settings_conversation"
+            name="image_settings_conversation",
+            per_chat=True,
+            per_user=True
         ) 
