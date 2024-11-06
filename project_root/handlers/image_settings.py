@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, CallbackQueryHandler
 from utils.database import User, ImageSettings, init_db
 from sqlalchemy.orm import Session
@@ -48,13 +48,20 @@ class ImageSettingsHandler:
             
             settings = session.query(ImageSettings).filter_by(user_id=user.id).first()
             if not settings:
-                settings = ImageSettings(user_id=user.id)
+                settings = ImageSettings(
+                    user_id=user.id,
+                    base_url="https://api.openai.com/v1",
+                    model="dall-e-3",
+                    size="1024x1024",
+                    quality="standard",
+                    style="natural",
+                    hdr=False
+                )
                 session.add(settings)
                 session.commit()
+                session.refresh(settings)
             
-            session.refresh(settings)
-            
-            settings_dict = {
+            return {
                 'base_url': settings.base_url,
                 'model': settings.model,
                 'size': settings.size,
@@ -62,11 +69,18 @@ class ImageSettingsHandler:
                 'style': settings.style,
                 'hdr': settings.hdr
             }
-            
-        return settings_dict
 
     async def image_settings_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show main image settings menu"""
+        # Get user_id correctly depending on update type
+        if isinstance(update, Update):
+            if update.callback_query:
+                user_id = update.callback_query.from_user.id
+            else:
+                user_id = update.effective_user.id
+        else:
+            user_id = update.from_user.id
+
         keyboard = [
             [InlineKeyboardButton("🌐 Базовый URL", callback_data="edit_image_base_url")],
             [InlineKeyboardButton("🎨 Модель", callback_data="select_image_model")],
@@ -78,7 +92,7 @@ class ImageSettingsHandler:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        settings = await self.get_or_create_settings(update.effective_user.id)
+        settings = await self.get_or_create_settings(user_id)
         text = (
             "🖼 Настройки генерации изображений:\n\n"
             f"🌐 URL: {settings['base_url']}\n"
@@ -89,10 +103,21 @@ class ImageSettingsHandler:
             f"HDR: {'Вкл' if settings['hdr'] else 'Выкл'}"
         )
         
-        if isinstance(update, Update):
-            await update.message.reply_text(text, reply_markup=reply_markup)
-        else:
-            await update.edit_message_text(text, reply_markup=reply_markup)
+        try:
+            if isinstance(update, Update) and update.callback_query:
+                await update.callback_query.edit_message_text(text=text, reply_markup=reply_markup)
+            elif isinstance(update, CallbackQuery):
+                await update.edit_message_text(text=text, reply_markup=reply_markup)
+            else:
+                await update.message.reply_text(text=text, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(f"Error in image_settings_menu: {e}", exc_info=True)
+            error_message = "❌ Произошла ошибка при отображении настроек. Попробуйте еще раз /image_settings"
+            if isinstance(update, (Update, CallbackQuery)) and hasattr(update, 'callback_query'):
+                await update.callback_query.message.reply_text(error_message)
+            else:
+                await update.message.reply_text(error_message)
+        
         return IMAGE_MAIN_MENU
 
     async def select_image_model(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -172,21 +197,38 @@ class ImageSettingsHandler:
         setting_type = data.split('_')[1]
         value = '_'.join(data.split('_')[2:])
         
-        with Session() as session:
-            settings = await self.get_or_create_settings(query.from_user.id)
-            
-            if setting_type == 'model':
-                settings['model'] = value
-            elif setting_type == 'size':
-                settings['size'] = value
-            elif setting_type == 'quality':
-                settings['quality'] = value
-            elif setting_type == 'style':
-                settings['style'] = value
+        try:
+            with Session() as session:
+                user = session.query(User).filter_by(telegram_id=query.from_user.id).first()
+                if not user:
+                    user = User(telegram_id=query.from_user.id)
+                    session.add(user)
+                    session.commit()
                 
-            session.commit()
+                settings = session.query(ImageSettings).filter_by(user_id=user.id).first()
+                if not settings:
+                    settings = ImageSettings(user_id=user.id)
+                    session.add(settings)
+                
+                # Update the appropriate setting
+                if setting_type == 'model':
+                    settings.model = value
+                elif setting_type == 'size':
+                    settings.size = value
+                elif setting_type == 'quality':
+                    settings.quality = value
+                elif setting_type == 'style':
+                    settings.style = value
+                
+                session.commit()
+                logger.debug(f"Updated {setting_type} to {value} for user {query.from_user.id}")
+            
+            return await self.image_settings_menu(query, context)
         
-        return await self.image_settings_menu(query, context)
+        except Exception as e:
+            logger.error(f"Error updating setting: {e}", exc_info=True)
+            await query.message.reply_text("❌ Произошла ошибка при обновлении настроек")
+            return await self.image_settings_menu(query, context)
 
     def get_conversation_handler(self):
         """Return conversation handler for image settings"""
