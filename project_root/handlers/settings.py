@@ -4,12 +4,14 @@ from utils.database import User, UserSettings, init_db
 from sqlalchemy.orm import Session
 import logging
 from utils.logging_config import setup_logging, log_function_call
+import os
 
 # States for text model settings conversation
 (MAIN_MENU, MODEL_SETTINGS, BASE_URL, MODEL_SELECTION, 
  CUSTOM_MODEL, TEMPERATURE, MAX_TOKENS, ASSISTANT_URL) = range(8)
 
-logger = setup_logging(__name__, 'logs/settings.log')
+# Initialize logging
+logger = setup_logging(__name__, 'settings.log')
 Session = init_db()
 
 class SettingsHandler:
@@ -183,7 +185,7 @@ class SettingsHandler:
             await update.message.reply_text(f"✅ Максимальное количество токенов установлено: {tokens}")
             return await self.settings_menu(update, context)
         except ValueError:
-            await update.message.reply_text("⚠️ Пожалуйста, введите целое число")
+            await update.message.reply_text("⚠️ Пожалуйста, вв��дите целое число")
             return MAX_TOKENS
 
     @log_function_call(logger)

@@ -2,6 +2,8 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 import sys
+from pathlib import Path
+import tempfile
 
 # Debug mode flag from environment variable
 DEBUG_MODE = os.getenv('DEBUG_MODE', 'False').lower() == 'true'
@@ -38,14 +40,36 @@ def setup_logging(name: str, log_file: str = None) -> logging.Logger:
     
     # File handler (if log_file is specified)
     if log_file:
-        file_handler = RotatingFileHandler(
-            log_file,
-            maxBytes=10*1024*1024,  # 10MB
-            backupCount=5
-        )
-        file_handler.setFormatter(detailed_formatter)
-        file_handler.setLevel(logging.DEBUG if DEBUG_MODE else logging.INFO)
-        logger.addHandler(file_handler)
+        try:
+            # Use system temp directory if we can't write to the specified directory
+            log_dir = os.path.dirname(log_file)
+            if not log_dir:
+                log_dir = tempfile.gettempdir()
+                log_file = os.path.join(log_dir, os.path.basename(log_file))
+            else:
+                try:
+                    Path(log_dir).mkdir(parents=True, exist_ok=True)
+                except (OSError, PermissionError):
+                    # If we can't create the directory, use temp directory
+                    log_dir = tempfile.gettempdir()
+                    log_file = os.path.join(log_dir, os.path.basename(log_file))
+            
+            file_handler = RotatingFileHandler(
+                log_file,
+                maxBytes=10*1024*1024,  # 10MB
+                backupCount=5,
+                mode='a',
+                encoding='utf-8'
+            )
+            file_handler.setFormatter(detailed_formatter)
+            file_handler.setLevel(logging.DEBUG if DEBUG_MODE else logging.INFO)
+            logger.addHandler(file_handler)
+            
+            logger.debug(f"Logging to file: {log_file}")
+            
+        except Exception as e:
+            # If we can't set up file logging, log to console only
+            logger.warning(f"Failed to set up file logging: {e}. Continuing with console logging only.")
     
     return logger
 

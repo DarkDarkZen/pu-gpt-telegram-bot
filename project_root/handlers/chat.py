@@ -11,7 +11,9 @@ import aiohttp
 from io import BytesIO
 from utils.logging_config import setup_logging, log_function_call
 
-logger = setup_logging(__name__, 'logs/chat.log')
+# Initialize logging
+logger = setup_logging(__name__, 'chat.log')
+
 Session = init_db()
 
 class ChatHandler:

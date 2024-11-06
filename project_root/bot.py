@@ -12,12 +12,16 @@ import asyncio
 from utils.logging_config import setup_logging, log_function_call
 import json
 
-# Configure logging
-logger = setup_logging(__name__, 'logs/bot.log')
+# Initialize logging
+logger = setup_logging(__name__, 'bot.log')
 
 class TelegramBot:
     def __init__(self):
         logger.debug("Initializing TelegramBot")
+        
+        # Create logs directory
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        
         load_dotenv()
         self.token = os.getenv('TELEGRAM_TOKEN')
         if not self.token:
