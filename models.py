@@ -1,6 +1,12 @@
 from dataclasses import dataclass
 from typing import Optional, List, Dict
 from datetime import datetime
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import json
+
+Base = declarative_base()
 
 @dataclass
 class TextModelSettings:
@@ -37,40 +43,32 @@ class User:
     image_settings: ImageModelSettings
     created_at: datetime = datetime.now()
 
-class MessageHistory:
-    def __init__(self, db_path: str = "bot.db"):
-        self.db_path = db_path
-        self.setup_database()
+class DBUser(Base):
+    __tablename__ = 'users'
     
-    def setup_database(self):
-        """Initialize database tables with enhanced schema"""
-        import sqlite3
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    user_id INTEGER PRIMARY KEY,
-                    username TEXT,
-                    first_name TEXT,
-                    last_name TEXT,
-                    text_settings TEXT,
-                    image_settings TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS messages (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    message_text TEXT,
-                    role TEXT,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    assistant_type TEXT DEFAULT 'gpt',
-                    FOREIGN KEY (user_id) REFERENCES users (user_id)
-                )
-            """)
-            
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_messages_user_timestamp 
-                ON messages(user_id, timestamp)
-            """) 
+    user_id = Column(Integer, primary_key=True)
+    username = Column(String)
+    first_name = Column(String)
+    last_name = Column(String)
+    text_settings = Column(Text)
+    image_settings = Column(Text)
+    created_at = Column(DateTime, default=datetime.now)
+
+class DBMessage(Base):
+    __tablename__ = 'messages'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.user_id'))
+    message_text = Column(Text)
+    role = Column(String)
+    timestamp = Column(DateTime, default=datetime.now)
+    assistant_type = Column(String, default='gpt')
+
+class MessageHistory:
+    def __init__(self, db_url: str):
+        self.engine = create_engine(db_url)
+        self.SessionLocal = sessionmaker(bind=self.engine)
+        Base.metadata.create_all(self.engine)
+    
+    def get_session(self):
+        return self.SessionLocal()

@@ -48,7 +48,7 @@ class GPTBot:
         self.config = config
         self.config.validate()
         self.application = Application.builder().token(config.TELEGRAM_TOKEN).build()
-        self.message_history = MessageHistory()
+        self.message_history = MessageHistory(config.DATABASE_URL)
         self.available_models = {
             "gpt-3.5-turbo": "GPT-3.5 Turbo",
             "gpt-4": "GPT-4",
