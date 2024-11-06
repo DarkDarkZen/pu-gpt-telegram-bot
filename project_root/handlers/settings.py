@@ -196,6 +196,44 @@ class SettingsHandler:
         await update.message.reply_text(f"✅ Модель установлена: {model_name}")
         return await self.settings_menu(update, context)
 
+    async def handle_base_url_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start base URL input process"""
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text("Введите новый Base URL:")
+        return BASE_URL
+
+    async def handle_max_tokens_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start max tokens input process"""
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text("Введите максимальное количество токенов (минимум 150):")
+        return MAX_TOKENS
+
+    async def handle_assistant_url_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start assistant URL input process"""
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text("Введите URL ассистента:")
+        return ASSISTANT_URL
+
+    async def handle_custom_model_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start custom model input process"""
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text("Введите название модели:")
+        return CUSTOM_MODEL
+
+    async def cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Cancel the conversation"""
+        if update.callback_query:
+            query = update.callback_query
+            await query.answer()
+            await query.edit_message_text("❌ Настройка отменена")
+        else:
+            await update.message.reply_text("❌ Настройка отменена")
+        return ConversationHandler.END
+
     def get_conversation_handler(self):
         """Return conversation handler for settings"""
         return ConversationHandler(
@@ -241,12 +279,3 @@ class SettingsHandler:
             allow_reentry=True,
             name="settings_conversation"
         )
-
-    async def handle_base_url_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Start base URL input process"""
-        query = update.callback_query
-        await query.answer()
-        await query.edit_message_text("Введите новый Base URL:")
-        return BASE_URL
-
-    # Add similar _start methods for other handlers...
