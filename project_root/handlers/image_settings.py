@@ -1,5 +1,12 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
-from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, CallbackQueryHandler
+from telegram.ext import (
+    ContextTypes, 
+    ConversationHandler, 
+    CommandHandler, 
+    CallbackQueryHandler,
+    MessageHandler,
+    filters
+)
 from utils.database import User, ImageSettings, init_db
 from sqlalchemy.orm import Session
 import logging
