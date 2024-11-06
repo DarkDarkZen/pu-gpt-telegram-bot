@@ -108,7 +108,8 @@ class HistoryHandler:
             allow_reentry=True,
             name="history_conversation",
             per_chat=True,
-            per_user=True
+            per_user=True,
+            per_message=True
         )
 
     async def save_message(self, user_id: int, content: str):

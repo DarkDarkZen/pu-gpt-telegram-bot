@@ -17,7 +17,7 @@ the following parameters for text model:
 the following parameters for images model:
 ### base url of openai compatible image model
 ### model itself (either chose from the short list of most popular llm image models or enter manually the name of the model)
-### all Key Parameters and Features of image model
+### all Key Parameters and Features of the image model
 ### handlers for each image setting (base_url, model, size, quality, style, hdr)
 ### get_image_settings and update_image_settings methods
 ## 6. There should be an option to clear message history for a user
