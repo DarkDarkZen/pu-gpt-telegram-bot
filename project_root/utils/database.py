@@ -27,6 +27,7 @@ class Message(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'))
     content = Column(String)
+    role = Column(String)  # 'user' or 'assistant'
     timestamp = Column(DateTime, default=datetime.utcnow)
     
     # Relationship

@@ -120,6 +120,12 @@ class ChatHandler:
             if final_response != last_message:
                 try:
                     await response_message.edit_text(final_response)
+                    # Save bot's response to history
+                    await self.history_handler.save_message(
+                        update.effective_user.id,
+                        final_response,
+                        role='assistant'
+                    )
                 except Exception as e:
                     if "Message is not modified" not in str(e):
                         logger.error(f"Error in final update: {e}")

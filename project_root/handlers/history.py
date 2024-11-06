@@ -38,7 +38,8 @@ class HistoryHandler:
         history_text = "📋 Ваши последние сообщения:\n\n"
         for msg in messages:
             date = msg.timestamp.strftime("%d.%m.%Y %H:%M")
-            history_text += f"🕒 {date}\n📝 {msg.content}\n\n"
+            prefix = "❓" if msg.role == 'user' else "💡"
+            history_text += f"🕒 {date}\n{prefix} {msg.content}\n\n"
         
         keyboard = [
             [InlineKeyboardButton("🗑️ Очистить историю", callback_data="clear_history")],
@@ -114,7 +115,7 @@ class HistoryHandler:
             conversation_timeout=300  # 5 minutes timeout
         )
 
-    async def save_message(self, user_id: int, content: str):
+    async def save_message(self, user_id: int, content: str, role: str = 'user'):
         """Save message to history"""
         with Session() as session:
             user = session.query(User).filter_by(telegram_id=user_id).first()
@@ -123,6 +124,6 @@ class HistoryHandler:
                 session.add(user)
                 session.commit()
             
-            message = Message(user_id=user.id, content=content)
+            message = Message(user_id=user.id, content=content, role=role)
             session.add(message)
             session.commit() 
