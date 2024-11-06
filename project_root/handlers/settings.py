@@ -132,12 +132,30 @@ class SettingsHandler:
         await query.answer()
         
         model = query.data.replace("model_", "")
-        with Session() as session:
-            settings = await self.get_or_create_settings(query.from_user.id)
-            settings.model = model
-            session.commit()
         
-        return await self.settings_menu(query, context)
+        try:
+            with Session() as session:
+                user = session.query(User).filter_by(telegram_id=query.from_user.id).first()
+                if not user:
+                    user = User(telegram_id=query.from_user.id)
+                    session.add(user)
+                    session.commit()
+                
+                settings = session.query(UserSettings).filter_by(user_id=user.id).first()
+                if not settings:
+                    settings = UserSettings(user_id=user.id)
+                    session.add(settings)
+                
+                settings.model = model
+                session.commit()
+                logger.debug(f"Updated model to {model} for user {query.from_user.id}")
+            
+            return await self.settings_menu(query, context)
+            
+        except Exception as e:
+            logger.error(f"Error updating model: {e}", exc_info=True)
+            await query.message.reply_text("❌ Произошла ошибка при обновлении модели")
+            return await self.settings_menu(query, context)
 
     @log_function_call(logger)
     async def temperature_selection(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
