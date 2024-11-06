@@ -8,6 +8,7 @@ from models import TextModelSettings, User, MessageHistory
 import aiohttp
 from typing import Dict, Any, List, Optional
 from enum import Enum, auto
+import logging
 
 # Add these new error classes at the top of the file
 class AssistantAPIError(Exception):
@@ -45,40 +46,46 @@ class SettingsState(Enum):
 
 class GPTBot:
     def __init__(self):
-        self.config = config
-        self.config.validate()
-        self.application = Application.builder().token(config.TELEGRAM_TOKEN).build()
-        self.message_history = MessageHistory(config.DATABASE_URL)
-        self.available_models = {
-            "gpt-3.5-turbo": "GPT-3.5 Turbo",
-            "gpt-4": "GPT-4",
-            "gpt-4-turbo": "GPT-4 Turbo",
-            "claude-3-sonnet": "Claude 3 Sonnet"
-        }
-        self.available_image_models = {
-            "dall-e-3": "DALL-E 3",
-            "dall-e-2": "DALL-E 2",
-            "stable-diffusion-xl": "Stable Diffusion XL",
-        }
-        
-        self.image_sizes = {
-            "1024x1024": "1024x1024 (Квадрат)",
-            "1792x1024": "1792x1024 (Широкий)",
-            "1024x1792": "1024x1792 (Высокий)",
-            "512x512": "512x512 (Маленький)",
-        }
-        
-        self.image_qualities = {
-            "standard": "Стандартное",
-            "hd": "Высокое качество",
-        }
-        
-        self.image_styles = {
-            "natural": "Натуральный",
-            "vivid": "Яркий",
-            "anime": "Аниме",
-        }
-        self.setup_handlers()
+        self.logger = logging.getLogger(__name__)
+        try:
+            self.config = config
+            self.config.validate()
+            self.application = Application.builder().token(config.TELEGRAM_TOKEN).build()
+            self.message_history = MessageHistory(config.DATABASE_URL)
+            self.available_models = {
+                "gpt-3.5-turbo": "GPT-3.5 Turbo",
+                "gpt-4": "GPT-4",
+                "gpt-4-turbo": "GPT-4 Turbo",
+                "claude-3-sonnet": "Claude 3 Sonnet"
+            }
+            self.available_image_models = {
+                "dall-e-3": "DALL-E 3",
+                "dall-e-2": "DALL-E 2",
+                "stable-diffusion-xl": "Stable Diffusion XL",
+            }
+            
+            self.image_sizes = {
+                "1024x1024": "1024x1024 (Квадрат)",
+                "1792x1024": "1792x1024 (Широкий)",
+                "1024x1792": "1024x1792 (Высокий)",
+                "512x512": "512x512 (Маленький)",
+            }
+            
+            self.image_qualities = {
+                "standard": "Стандартное",
+                "hd": "Высокое качество",
+            }
+            
+            self.image_styles = {
+                "natural": "Натуральный",
+                "vivid": "Яркий",
+                "anime": "Аниме",
+            }
+            self.setup_handlers()
+            self.logger.info("Bot initialized successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize bot: {e}")
+            raise e
 
     def setup_handlers(self):
         """Setup bot command and message handlers"""
@@ -399,7 +406,15 @@ class GPTBot:
 
     def run(self):
         """Run the bot"""
-        self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+        try:
+            self.logger.info("Starting bot polling...")
+            self.application.run_polling(
+                allowed_updates=Update.ALL_TYPES,
+                drop_pending_updates=True
+            )
+        except Exception as e:
+            self.logger.error(f"Error in bot polling: {e}")
+            raise e
 
     async def show_settings_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show main settings menu"""
