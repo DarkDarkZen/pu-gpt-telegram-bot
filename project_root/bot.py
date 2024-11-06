@@ -53,10 +53,10 @@ class TelegramBot:
         self.application.job_queue.scheduler.start()
         
         # Initialize handlers
+        self.history_handler = HistoryHandler()
         self.settings_handler = SettingsHandler()
         self.image_settings_handler = ImageSettingsHandler()
-        self.history_handler = HistoryHandler()
-        self.chat_handler = ChatHandler()
+        self.chat_handler = ChatHandler(history_handler=self.history_handler)
         
         self._running = False
         self._offset = None

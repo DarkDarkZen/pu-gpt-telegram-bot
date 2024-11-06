@@ -19,11 +19,12 @@ logger = setup_logging(__name__, 'chat.log')
 Session = init_db()
 
 class ChatHandler:
-    def __init__(self):
+    def __init__(self, history_handler):
         logger.debug("Initializing ChatHandler")
         self.openai_client = AsyncOpenAI(
             api_key=os.getenv('OPENAI_API_KEY')
         )
+        self.history_handler = history_handler  # Store the history handler
 
     async def get_user_settings(self, user_id: int) -> dict:
         """Get user settings"""
