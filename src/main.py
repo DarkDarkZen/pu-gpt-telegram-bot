@@ -1,5 +1,5 @@
 import logging
-from .bot import GPTBot
+from src.bot import GPTBot
 
 # Configure logging
 logging.basicConfig(
