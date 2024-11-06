@@ -11,7 +11,7 @@ import aiohttp
 from io import BytesIO
 from utils.logging_config import setup_logging, log_function_call
 
-# Initialize logging
+# Initialize logging with just the filename
 logger = setup_logging(__name__, 'chat.log')
 
 Session = init_db()
@@ -183,7 +183,7 @@ class ChatHandler:
             settings = await self.get_image_settings(update.effective_user.id)
             if not settings:
                 await response_message.edit_text(
-                    "⚠️ Пожалуйста, настройте параметры генерации изображений через /image_settings"
+                    "⚠️ Пожалуйста, настройте ��араметры генерации изображений через /image_settings"
                 )
                 return
 

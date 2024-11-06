@@ -41,18 +41,18 @@ def setup_logging(name: str, log_file: str = None) -> logging.Logger:
     # File handler (if log_file is specified)
     if log_file:
         try:
-            # Use system temp directory if we can't write to the specified directory
-            log_dir = os.path.dirname(log_file)
-            if not log_dir:
-                log_dir = tempfile.gettempdir()
-                log_file = os.path.join(log_dir, os.path.basename(log_file))
+            # Always use temp directory for log files in production
+            if not DEBUG_MODE:
+                log_file = os.path.join(tempfile.gettempdir(), os.path.basename(log_file))
             else:
-                try:
-                    Path(log_dir).mkdir(parents=True, exist_ok=True)
-                except (OSError, PermissionError):
-                    # If we can't create the directory, use temp directory
-                    log_dir = tempfile.gettempdir()
-                    log_file = os.path.join(log_dir, os.path.basename(log_file))
+                # In debug mode, try to use specified path first
+                log_dir = os.path.dirname(log_file)
+                if log_dir:
+                    try:
+                        Path(log_dir).mkdir(parents=True, exist_ok=True)
+                    except (OSError, PermissionError):
+                        # Fallback to temp directory
+                        log_file = os.path.join(tempfile.gettempdir(), os.path.basename(log_file))
             
             file_handler = RotatingFileHandler(
                 log_file,

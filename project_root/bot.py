@@ -11,16 +11,22 @@ from handlers.chat import ChatHandler
 import asyncio
 from utils.logging_config import setup_logging, log_function_call
 import json
+from pathlib import Path
 
+# Set up logging directory
+LOGS_DIR = os.path.join(os.path.dirname(__file__), 'logs')
 # Initialize logging
-logger = setup_logging(__name__, 'bot.log')
+logger = setup_logging(__name__, os.path.join(LOGS_DIR, 'bot.log'))
 
 class TelegramBot:
     def __init__(self):
         logger.debug("Initializing TelegramBot")
         
-        # Create logs directory
-        os.makedirs(LOGS_DIR, exist_ok=True)
+        try:
+            # Create logs directory if it doesn't exist
+            os.makedirs(LOGS_DIR, exist_ok=True)
+        except Exception as e:
+            logger.warning(f"Could not create logs directory: {e}")
         
         load_dotenv()
         self.token = os.getenv('TELEGRAM_TOKEN')
