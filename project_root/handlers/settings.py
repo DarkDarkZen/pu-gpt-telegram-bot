@@ -74,7 +74,7 @@ class SettingsHandler:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        settings = await self.get_or_create_settings(update.effective_user.id)
+        settings = await self.get_or_create_settings(user_id)
         text = (
             "⚙️ Текущие настройки:\n\n"
             f"🌐 URL: {settings['base_url']}\n"
@@ -84,10 +84,28 @@ class SettingsHandler:
             f"🔗 Ассистент: {'Включен' if settings['use_assistant'] else 'Выключен'}"
         )
         
-        if isinstance(update, Update):
-            await update.message.reply_text(text, reply_markup=reply_markup)
-        else:
-            await update.edit_message_text(text, reply_markup=reply_markup)
+        try:
+            if update.callback_query:
+                # If this is a callback query, edit the existing message
+                await update.callback_query.edit_message_text(
+                    text=text,
+                    reply_markup=reply_markup
+                )
+            else:
+                # If this is a command, send a new message
+                await update.message.reply_text(
+                    text=text,
+                    reply_markup=reply_markup
+                )
+        except Exception as e:
+            logger.error(f"Error in settings_menu: {e}", exc_info=True)
+            # Handle the error gracefully
+            error_message = "❌ Произошла ошибка при отображении настроек. Попробуйте еще раз /settings"
+            if update.callback_query:
+                await update.callback_query.message.reply_text(error_message)
+            else:
+                await update.message.reply_text(error_message)
+        
         return MAIN_MENU
 
     @log_function_call(logger)
