@@ -271,13 +271,31 @@ class SettingsHandler:
         """Handle custom model input"""
         model_name = update.message.text
         
-        with Session() as session:
-            settings = await self.get_or_create_settings(update.effective_user.id)
-            settings.model = model_name
-            session.commit()
-        
-        await update.message.reply_text(f"✅ Модель установлена: {model_name}")
-        return await self.settings_menu(update, context)
+        try:
+            with Session() as session:
+                user = session.query(User).filter_by(telegram_id=update.effective_user.id).first()
+                if not user:
+                    user = User(telegram_id=update.effective_user.id)
+                    session.add(user)
+                    session.commit()
+                
+                settings = session.query(UserSettings).filter_by(user_id=user.id).first()
+                if not settings:
+                    settings = UserSettings(user_id=user.id)
+                    session.add(settings)
+                
+                # Update model directly in the database
+                settings.model = model_name
+                session.commit()
+                logger.debug(f"Updated model to {model_name} for user {update.effective_user.id}")
+            
+            await update.message.reply_text(f"✅ Модель установлена: {model_name}")
+            return await self.settings_menu(update, context)
+            
+        except Exception as e:
+            logger.error(f"Error updating custom model: {e}", exc_info=True)
+            await update.message.reply_text("❌ Произошла ошибка при установке модели")
+            return await self.settings_menu(update, context)
 
     @log_function_call(logger)
     async def handle_base_url_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
