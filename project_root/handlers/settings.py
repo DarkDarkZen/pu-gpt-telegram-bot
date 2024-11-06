@@ -52,7 +52,7 @@ class SettingsHandler:
             "⚙️ Текущие настройки:\n\n"
             f"🌐 URL: {settings.base_url}\n"
             f"🤖 Модель: {settings.model}\n"
-            f"🌡️ Температура: {settings.temperature}\n"
+            f"🌡�� Температура: {settings.temperature}\n"
             f"📊 Макс. токенов: {settings.max_tokens}\n"
             f"🔗 Ассистент: {'Включен' if settings.use_assistant else 'Выключен'}"
         )
@@ -110,6 +110,77 @@ class SettingsHandler:
         )
         return TEMPERATURE
 
+    async def handle_base_url(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle base URL input"""
+        user_id = update.effective_user.id
+        new_url = update.message.text
+        
+        with Session() as session:
+            settings = await self.get_or_create_settings(user_id)
+            settings.base_url = new_url
+            session.commit()
+        
+        await update.message.reply_text(f"✅ Base URL обновлен на: {new_url}")
+        return await self.settings_menu(update, context)
+
+    async def handle_temperature(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle temperature selection"""
+        query = update.callback_query
+        await query.answer()
+        
+        temp = float(query.data.replace("temp_", ""))
+        with Session() as session:
+            settings = await self.get_or_create_settings(query.from_user.id)
+            settings.temperature = temp
+            session.commit()
+        
+        return await self.settings_menu(query, context)
+
+    async def handle_max_tokens(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle max tokens input"""
+        try:
+            tokens = int(update.message.text)
+            if tokens < 150:
+                await update.message.reply_text("⚠️ Минимальное значение токенов: 150")
+                return MAX_TOKENS
+            
+            with Session() as session:
+                settings = await self.get_or_create_settings(update.effective_user.id)
+                settings.max_tokens = tokens
+                session.commit()
+            
+            await update.message.reply_text(f"✅ Максимальное количество токенов установлено: {tokens}")
+            return await self.settings_menu(update, context)
+        except ValueError:
+            await update.message.reply_text("⚠️ Пожалуйста, введите целое число")
+            return MAX_TOKENS
+
+    async def handle_assistant_url(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle AI assistant URL input"""
+        user_id = update.effective_user.id
+        assistant_url = update.message.text
+        
+        with Session() as session:
+            settings = await self.get_or_create_settings(user_id)
+            settings.assistant_url = assistant_url
+            settings.use_assistant = True
+            session.commit()
+        
+        await update.message.reply_text(f"✅ URL ассистента установлен: {assistant_url}")
+        return await self.settings_menu(update, context)
+
+    async def handle_custom_model(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle custom model input"""
+        model_name = update.message.text
+        
+        with Session() as session:
+            settings = await self.get_or_create_settings(update.effective_user.id)
+            settings.model = model_name
+            session.commit()
+        
+        await update.message.reply_text(f"✅ Модель установлена: {model_name}")
+        return await self.settings_menu(update, context)
+
     def get_conversation_handler(self):
         """Return conversation handler for settings"""
         return ConversationHandler(
@@ -118,16 +189,28 @@ class SettingsHandler:
                 MAIN_MENU: [
                     CallbackQueryHandler(self.model_selection, pattern="^select_model$"),
                     CallbackQueryHandler(self.temperature_selection, pattern="^edit_temperature$"),
-                    # Add other menu handlers
+                    CallbackQueryHandler(lambda u, c: u.message.reply_text(
+                        "Введите новый Base URL:"), pattern="^edit_base_url$"),
+                    CallbackQueryHandler(lambda u, c: u.message.reply_text(
+                        "Введите максимальное количество токенов (минимум 150):"), 
+                        pattern="^edit_max_tokens$"),
+                    CallbackQueryHandler(lambda u, c: u.message.reply_text(
+                        "Введите URL ассистента:"), pattern="^edit_assistant_url$"),
                 ],
                 MODEL_SELECTION: [
                     CallbackQueryHandler(self.handle_model_selection, pattern="^model_"),
+                    CallbackQueryHandler(lambda u, c: u.message.reply_text(
+                        "Введите название модели:"), pattern="^custom_model$"),
                     CallbackQueryHandler(self.settings_menu, pattern="^back_to_menu$"),
                 ],
                 TEMPERATURE: [
                     CallbackQueryHandler(self.handle_temperature, pattern="^temp_"),
                     CallbackQueryHandler(self.settings_menu, pattern="^back_to_menu$"),
                 ],
+                BASE_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_base_url)],
+                MAX_TOKENS: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_max_tokens)],
+                ASSISTANT_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_assistant_url)],
+                CUSTOM_MODEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_custom_model)],
             },
             fallbacks=[CallbackQueryHandler(self.settings_menu, pattern="^close$")],
-        ) 
+        )
