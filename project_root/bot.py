@@ -8,6 +8,7 @@ from handlers.image_settings import ImageSettingsHandler
 from handlers.history import HistoryHandler
 from telegram.ext import MessageHandler, filters
 from handlers.chat import ChatHandler
+import asyncio
 
 # Configure logging
 logging.basicConfig(
@@ -31,6 +32,15 @@ class TelegramBot:
         self.history_handler = HistoryHandler()
         self.chat_handler = ChatHandler()
         
+        self._running = False
+        
+    async def stop(self):
+        """Stop the bot"""
+        if self._running:
+            await self.application.stop()
+            await self.application.shutdown()
+            self._running = False
+    
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
         await update.message.reply_text(
@@ -106,10 +116,25 @@ class TelegramBot:
         
     def run(self):
         """Run the bot in polling mode"""
-        logger.info("Starting bot...")
-        self.setup_handlers()
-        self.application.run_polling(allowed_updates=True)
+        try:
+            if not self._running:
+                logger.info("Starting bot...")
+                self.setup_handlers()
+                self._running = True
+                self.application.run_polling(allowed_updates=True)
+        except Exception as e:
+            logger.error(f"Error running bot: {e}")
+            self._running = False
+        finally:
+            asyncio.run(self.stop())
 
 if __name__ == "__main__":
     bot = TelegramBot()
-    bot.run() 
+    try:
+        bot.run()
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+    except Exception as e:
+        logger.error(f"Bot stopped due to error: {e}")
+    finally:
+        asyncio.run(bot.stop()) 

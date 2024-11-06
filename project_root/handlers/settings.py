@@ -227,6 +227,5 @@ class SettingsHandler:
                 ASSISTANT_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_assistant_url)],
                 CUSTOM_MODEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_custom_model)],
             },
-            fallbacks=[CallbackQueryHandler(self.settings_menu, pattern="^close$")],
-            per_message=True
+            fallbacks=[CallbackQueryHandler(self.settings_menu, pattern="^close$")]
         )
