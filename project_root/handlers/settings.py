@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from utils.database import User, UserSettings, init_db
 from sqlalchemy.orm import Session
@@ -63,7 +63,14 @@ class SettingsHandler:
     async def settings_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show main settings menu"""
         # Get user_id correctly depending on update type
-        user_id = update.effective_user.id if not isinstance(update, CallbackQuery) else update.from_user.id
+        if isinstance(update, Update):
+            if update.callback_query:
+                user_id = update.callback_query.from_user.id
+            else:
+                user_id = update.effective_user.id
+        else:
+            user_id = update.from_user.id
+            
         logger.info(f"Showing settings menu for user {user_id}")
         
         keyboard = [
@@ -87,9 +94,9 @@ class SettingsHandler:
         )
         
         try:
-            if isinstance(update, CallbackQuery):
+            if isinstance(update, Update) and update.callback_query:
                 # If this is a callback query, edit the existing message
-                await update.edit_message_text(
+                await update.callback_query.edit_message_text(
                     text=text,
                     reply_markup=reply_markup
                 )
@@ -103,8 +110,8 @@ class SettingsHandler:
             logger.error(f"Error in settings_menu: {e}", exc_info=True)
             # Handle the error gracefully
             error_message = "❌ Произошла ошибка при отображении настроек. Попробуйте еще раз /settings"
-            if isinstance(update, CallbackQuery):
-                await update.message.reply_text(error_message)
+            if isinstance(update, Update) and update.callback_query:
+                await update.callback_query.message.reply_text(error_message)
             else:
                 await update.message.reply_text(error_message)
         
