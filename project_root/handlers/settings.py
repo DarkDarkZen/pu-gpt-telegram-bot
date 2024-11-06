@@ -206,12 +206,30 @@ class SettingsHandler:
         await query.answer()
         
         temp = float(query.data.replace("temp_", ""))
-        with Session() as session:
-            settings = await self.get_or_create_settings(query.from_user.id)
-            settings.temperature = temp
-            session.commit()
-        
-        return await self.settings_menu(query, context)
+        try:
+            with Session() as session:
+                user = session.query(User).filter_by(telegram_id=query.from_user.id).first()
+                if not user:
+                    user = User(telegram_id=query.from_user.id)
+                    session.add(user)
+                    session.commit()
+                
+                settings = session.query(UserSettings).filter_by(user_id=user.id).first()
+                if not settings:
+                    settings = UserSettings(user_id=user.id)
+                    session.add(settings)
+                
+                # Update temperature directly in the database
+                settings.temperature = temp
+                session.commit()
+                logger.debug(f"Updated temperature to {temp} for user {query.from_user.id}")
+            
+            return await self.settings_menu(query, context)
+            
+        except Exception as e:
+            logger.error(f"Error updating temperature: {e}", exc_info=True)
+            await query.message.reply_text("❌ Произошла ошибка при обновлении температуры")
+            return await self.settings_menu(query, context)
 
     @log_function_call(logger)
     async def handle_max_tokens(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
