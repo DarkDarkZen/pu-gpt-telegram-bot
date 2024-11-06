@@ -1,3 +1,3 @@
-from config import config
-from models import TextModelSettings, User, MessageHistory
+from .config import config
+from .models import TextModelSettings, User, MessageHistory
 # ... rest of the imports and code remains the same ... 
