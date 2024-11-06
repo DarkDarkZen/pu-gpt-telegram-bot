@@ -36,6 +36,12 @@ class SettingsState(Enum):
     MAX_TOKENS = auto()
     ASSISTANT_URL = auto()
     CONFIRM = auto()
+    IMAGE_MENU = auto()
+    IMAGE_BASE_URL = auto()
+    IMAGE_MODEL = auto()
+    IMAGE_SIZE = auto()
+    IMAGE_QUALITY = auto()
+    IMAGE_STYLE = auto()
 
 class GPTBot:
     def __init__(self):
@@ -48,6 +54,29 @@ class GPTBot:
             "gpt-4": "GPT-4",
             "gpt-4-turbo": "GPT-4 Turbo",
             "claude-3-sonnet": "Claude 3 Sonnet"
+        }
+        self.available_image_models = {
+            "dall-e-3": "DALL-E 3",
+            "dall-e-2": "DALL-E 2",
+            "stable-diffusion-xl": "Stable Diffusion XL",
+        }
+        
+        self.image_sizes = {
+            "1024x1024": "1024x1024 (Квадрат)",
+            "1792x1024": "1792x1024 (Широкий)",
+            "1024x1792": "1024x1792 (Высокий)",
+            "512x512": "512x512 (Маленький)",
+        }
+        
+        self.image_qualities = {
+            "standard": "Стандартное",
+            "hd": "Высокое качество",
+        }
+        
+        self.image_styles = {
+            "natural": "Натуральный",
+            "vivid": "Яркий",
+            "anime": "Аниме",
         }
         self.setup_handlers()
 
@@ -84,6 +113,30 @@ class GPTBot:
                 SettingsState.ASSISTANT_URL: [
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_assistant_url),
                     CallbackQueryHandler(self.show_settings_menu, pattern="^back$"),
+                ],
+                SettingsState.IMAGE_MENU: [
+                    CallbackQueryHandler(self.handle_image_setting, pattern="^set_img_"),
+                    CallbackQueryHandler(self.show_settings_menu, pattern="^back$"),
+                ],
+                SettingsState.IMAGE_BASE_URL: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_image_base_url),
+                    CallbackQueryHandler(self.image_model_menu, pattern="^back$"),
+                ],
+                SettingsState.IMAGE_MODEL: [
+                    CallbackQueryHandler(self.handle_image_model, pattern="^img_model_"),
+                    CallbackQueryHandler(self.image_model_menu, pattern="^back$"),
+                ],
+                SettingsState.IMAGE_SIZE: [
+                    CallbackQueryHandler(self.handle_image_size, pattern="^img_size_"),
+                    CallbackQueryHandler(self.image_model_menu, pattern="^back$"),
+                ],
+                SettingsState.IMAGE_QUALITY: [
+                    CallbackQueryHandler(self.handle_image_quality, pattern="^img_quality_"),
+                    CallbackQueryHandler(self.image_model_menu, pattern="^back$"),
+                ],
+                SettingsState.IMAGE_STYLE: [
+                    CallbackQueryHandler(self.handle_image_style, pattern="^img_style_"),
+                    CallbackQueryHandler(self.image_model_menu, pattern="^back$"),
                 ],
             },
             fallbacks=[CallbackQueryHandler(self.cancel_settings, pattern="^cancel$")],
@@ -355,6 +408,7 @@ class GPTBot:
         
         keyboard = [
             [InlineKeyboardButton("📝 Настройки текстовой модели", callback_data="text_settings")],
+            [InlineKeyboardButton("🖼 Настройки генерации изображений", callback_data="image_settings")],
             [InlineKeyboardButton(
                 f"🤖 AI Ассистент: {'Вкл' if settings.use_assistant else 'Выкл'}", 
                 callback_data="toggle_assistant"
@@ -495,6 +549,47 @@ class GPTBot:
         await query.answer()
         await query.edit_message_text("Настройки закрыты")
         return ConversationHandler.END
+
+    async def image_model_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show image model settings menu"""
+        query = update.callback_query
+        await query.answer()
+        
+        user_id = query.from_user.id
+        settings = await self.get_image_settings(user_id)
+        
+        keyboard = [
+            [InlineKeyboardButton(
+                f"🌐 Base URL: {settings.base_url}", 
+                callback_data="set_img_base_url"
+            )],
+            [InlineKeyboardButton(
+                f"🎨 Модель: {self.available_image_models.get(settings.model, settings.model)}", 
+                callback_data="set_img_model"
+            )],
+            [InlineKeyboardButton(
+                f"📐 Размер: {self.image_sizes.get(settings.size, settings.size)}", 
+                callback_data="set_img_size"
+            )],
+            [InlineKeyboardButton(
+                f"✨ Качество: {self.image_qualities.get(settings.quality, settings.quality)}", 
+                callback_data="set_img_quality"
+            )],
+            [InlineKeyboardButton(
+                f"🎭 Стиль: {self.image_styles.get(settings.style, settings.style)}", 
+                callback_data="set_img_style"
+            )],
+            [InlineKeyboardButton(
+                f"HDR: {'Вкл' if settings.hdr else 'Выкл'}", 
+                callback_data="toggle_img_hdr"
+            )],
+            [InlineKeyboardButton("⬅️ Назад", callback_data="back")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text("Настройки генерации изображений:", reply_markup=reply_markup)
+        
+        return SettingsState.IMAGE_MENU
 
 if __name__ == "__main__":
     bot = GPTBot()
