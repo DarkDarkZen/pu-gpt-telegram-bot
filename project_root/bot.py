@@ -123,7 +123,8 @@ class TelegramBot:
         if update.message.text and update.message.text.startswith('/image '):
             prompt = update.message.text[7:].strip()  # Remove '/image ' prefix
             if prompt:
-                update.message.text = prompt  # Set the prompt as message text
+                # Create a new context variable for the prompt instead of modifying message
+                context.user_data['image_prompt'] = prompt
                 await self.chat_handler.handle_image_generation(update, context)
                 return
         

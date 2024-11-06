@@ -142,13 +142,19 @@ class ChatHandler:
                 )
                 return
 
+            # Get prompt from context
+            prompt = context.user_data.get('image_prompt', '')
+            if not prompt:
+                await response_message.edit_text("❌ Не указан текст для генерации изображения")
+                return
+
             # Configure OpenAI client with user settings
             self.openai_client.base_url = settings.base_url
             
             # Prepare image generation parameters
             image_params = {
                 "model": settings.model,
-                "prompt": update.message.text,
+                "prompt": prompt,  # Use prompt from context
                 "size": settings.size,
                 "quality": settings.quality,
                 "style": settings.style,
@@ -183,8 +189,12 @@ class ChatHandler:
             # Send the image with the original prompt as caption
             await update.message.reply_photo(
                 photo=BytesIO(image_data),
-                caption=f"🎨 Prompt: {update.message.text}"
+                caption=f"🎨 Prompt: {prompt}"
             )
+            
+            # Clean up context
+            if 'image_prompt' in context.user_data:
+                del context.user_data['image_prompt']
             
         except Exception as e:
             error_message = f"❌ Произошла ошибка при генерации изображения: {str(e)}"
