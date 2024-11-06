@@ -1,4 +1,5 @@
-from telegram.ext import Application, Update, ContextTypes
+from telegram import Update
+from telegram.ext import Application, ContextTypes
 from dotenv import load_dotenv
 import os
 import logging
@@ -30,7 +31,7 @@ class TelegramBot:
         self.history_handler = HistoryHandler()
         self.chat_handler = ChatHandler()
         
-    async def start(self, update, context):
+    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
         await update.message.reply_text(
             "👋 Здравствуйте! Я GPT бот, который может работать с текстом и изображениями.\n\n"

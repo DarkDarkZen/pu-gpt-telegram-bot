@@ -52,7 +52,7 @@ class SettingsHandler:
             "⚙️ Текущие настройки:\n\n"
             f"🌐 URL: {settings.base_url}\n"
             f"🤖 Модель: {settings.model}\n"
-            f"🌡�� Температура: {settings.temperature}\n"
+            f"🌡 Температура: {settings.temperature}\n"
             f"📊 Макс. токенов: {settings.max_tokens}\n"
             f"🔗 Ассистент: {'Включен' if settings.use_assistant else 'Выключен'}"
         )
