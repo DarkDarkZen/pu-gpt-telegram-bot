@@ -217,5 +217,7 @@ class ImageSettingsHandler:
                     CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_menu$"),
                 ],
             },
-            fallbacks=[CallbackQueryHandler(self.image_settings_menu, pattern="^close_image_settings$")]
+            fallbacks=[CallbackQueryHandler(self.image_settings_menu, pattern="^close_image_settings$")],
+            allow_reentry=True,
+            name="image_settings_conversation"
         ) 

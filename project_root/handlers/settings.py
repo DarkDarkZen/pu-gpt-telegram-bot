@@ -204,28 +204,49 @@ class SettingsHandler:
                 MAIN_MENU: [
                     CallbackQueryHandler(self.model_selection, pattern="^select_model$"),
                     CallbackQueryHandler(self.temperature_selection, pattern="^edit_temperature$"),
-                    CallbackQueryHandler(lambda u, c: u.message.reply_text(
-                        "Введите новый Base URL:"), pattern="^edit_base_url$"),
-                    CallbackQueryHandler(lambda u, c: u.message.reply_text(
-                        "Введите максимальное количество токенов (минимум 150):"), 
-                        pattern="^edit_max_tokens$"),
-                    CallbackQueryHandler(lambda u, c: u.message.reply_text(
-                        "Введите URL ассистента:"), pattern="^edit_assistant_url$"),
+                    CallbackQueryHandler(self.handle_base_url_start, pattern="^edit_base_url$"),
+                    CallbackQueryHandler(self.handle_max_tokens_start, pattern="^edit_max_tokens$"),
+                    CallbackQueryHandler(self.handle_assistant_url_start, pattern="^edit_assistant_url$"),
                 ],
                 MODEL_SELECTION: [
                     CallbackQueryHandler(self.handle_model_selection, pattern="^model_"),
-                    CallbackQueryHandler(lambda u, c: u.message.reply_text(
-                        "Введите название модели:"), pattern="^custom_model$"),
+                    CallbackQueryHandler(self.handle_custom_model_start, pattern="^custom_model$"),
                     CallbackQueryHandler(self.settings_menu, pattern="^back_to_menu$"),
                 ],
                 TEMPERATURE: [
                     CallbackQueryHandler(self.handle_temperature, pattern="^temp_"),
                     CallbackQueryHandler(self.settings_menu, pattern="^back_to_menu$"),
                 ],
-                BASE_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_base_url)],
-                MAX_TOKENS: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_max_tokens)],
-                ASSISTANT_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_assistant_url)],
-                CUSTOM_MODEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_custom_model)],
+                BASE_URL: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_base_url),
+                    CallbackQueryHandler(self.settings_menu, pattern="^back_to_menu$"),
+                ],
+                MAX_TOKENS: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_max_tokens),
+                    CallbackQueryHandler(self.settings_menu, pattern="^back_to_menu$"),
+                ],
+                ASSISTANT_URL: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_assistant_url),
+                    CallbackQueryHandler(self.settings_menu, pattern="^back_to_menu$"),
+                ],
+                CUSTOM_MODEL: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_custom_model),
+                    CallbackQueryHandler(self.settings_menu, pattern="^back_to_menu$"),
+                ],
             },
-            fallbacks=[CallbackQueryHandler(self.settings_menu, pattern="^close$")]
+            fallbacks=[
+                CallbackQueryHandler(self.settings_menu, pattern="^close$"),
+                CommandHandler('cancel', self.cancel),
+            ],
+            allow_reentry=True,
+            name="settings_conversation"
         )
+
+    async def handle_base_url_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start base URL input process"""
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text("Введите новый Base URL:")
+        return BASE_URL
+
+    # Add similar _start methods for other handlers...

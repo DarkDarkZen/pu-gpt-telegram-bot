@@ -34,6 +34,19 @@ class TelegramBot:
         
         self._running = False
         
+        # Add error handler
+        self.application.add_error_handler(self.error_handler)
+    
+    async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle errors"""
+        logger.error(f"Exception while handling an update: {context.error}")
+        
+        # Send message to user
+        if update and update.effective_message:
+            await update.effective_message.reply_text(
+                "❌ Произошла ошибка при обработке запроса. Пожалуйста, попробуйте позже."
+            )
+    
     async def stop(self):
         """Stop the bot"""
         if self._running:

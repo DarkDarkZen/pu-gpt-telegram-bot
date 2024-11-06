@@ -104,7 +104,9 @@ class HistoryHandler:
                     CallbackQueryHandler(self.cancel, pattern="^confirm_clear_no$"),
                 ],
             },
-            fallbacks=[CallbackQueryHandler(self.cancel, pattern="^cancel$")]
+            fallbacks=[CallbackQueryHandler(self.cancel, pattern="^cancel$")],
+            allow_reentry=True,
+            name="history_conversation"
         )
 
     async def save_message(self, user_id: int, content: str):

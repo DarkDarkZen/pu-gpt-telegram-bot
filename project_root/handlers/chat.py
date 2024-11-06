@@ -40,6 +40,7 @@ class ChatHandler:
         # Initial response message
         response_message = await update.message.reply_text("⌛ Генерирую ответ...")
         collected_chunks = []
+        last_message = ""
         
         try:
             # Get user settings
@@ -71,15 +72,24 @@ class ChatHandler:
                     # Update message every 20 chunks or when chunk ends with sentence
                     if len(collected_chunks) % 20 == 0 or chunk.choices[0].delta.content.endswith(('.', '!', '?')):
                         current_response = ''.join(collected_chunks)
-                        try:
-                            await response_message.edit_text(current_response)
-                        except Exception as e:
-                            logger.error(f"Error updating message: {e}")
-                            continue
-                            
+                        if current_response != last_message:  # Only update if content changed
+                            try:
+                                await response_message.edit_text(current_response)
+                                last_message = current_response
+                            except Exception as e:
+                                if "Message is not modified" not in str(e):
+                                    logger.error(f"Error updating message: {e}")
+                                continue
+                                
             # Final update with complete response
             final_response = ''.join(collected_chunks)
-            await response_message.edit_text(final_response)
+            if final_response != last_message:
+                try:
+                    await response_message.edit_text(final_response)
+                except Exception as e:
+                    if "Message is not modified" not in str(e):
+                        logger.error(f"Error in final update: {e}")
+                        await response_message.edit_text(error_message)
             
         except Exception as e:
             error_message = f"❌ Произошла ошибка: {str(e)}"
