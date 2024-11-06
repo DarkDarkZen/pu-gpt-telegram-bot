@@ -3,17 +3,12 @@
   "builds": [
     {
       "src": "api/webhook.py",
-      "use": "@vercel/python",
-      "config": { "runtime": "python3.11" }
+      "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/api/webhook",
-      "dest": "api/webhook.py"
-    },
-    {
-      "src": "/api/health",
       "dest": "api/webhook.py"
     }
   ]
