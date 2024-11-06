@@ -105,6 +105,7 @@ class HistoryHandler:
                 ],
             },
             fallbacks=[CallbackQueryHandler(self.cancel, pattern="^cancel$")],
+            per_message=True
         )
 
     async def save_message(self, user_id: int, content: str):

@@ -21,6 +21,7 @@ class SettingsHandler:
         }
 
     async def get_or_create_settings(self, user_id: int) -> UserSettings:
+        """Get or create user settings"""
         with Session() as session:
             user = session.query(User).filter_by(telegram_id=user_id).first()
             if not user:
@@ -28,12 +29,26 @@ class SettingsHandler:
                 session.add(user)
                 session.commit()
             
-            settings = user.settings
+            settings = session.query(UserSettings).filter_by(user_id=user.id).first()
             if not settings:
                 settings = UserSettings(user_id=user.id)
                 session.add(settings)
                 session.commit()
-            return settings
+            
+            # Refresh the session to ensure all attributes are loaded
+            session.refresh(settings)
+            
+            # Create a dictionary of settings values
+            settings_dict = {
+                'base_url': settings.base_url,
+                'model': settings.model,
+                'temperature': settings.temperature,
+                'max_tokens': settings.max_tokens,
+                'use_assistant': settings.use_assistant,
+                'assistant_url': settings.assistant_url
+            }
+        
+        return settings_dict
 
     async def settings_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show main settings menu"""
@@ -50,11 +65,11 @@ class SettingsHandler:
         settings = await self.get_or_create_settings(update.effective_user.id)
         text = (
             "⚙️ Текущие настройки:\n\n"
-            f"🌐 URL: {settings.base_url}\n"
-            f"🤖 Модель: {settings.model}\n"
-            f"🌡 Температура: {settings.temperature}\n"
-            f"📊 Макс. токенов: {settings.max_tokens}\n"
-            f"🔗 Ассистент: {'Включен' if settings.use_assistant else 'Выключен'}"
+            f"🌐 URL: {settings['base_url']}\n"
+            f"🤖 Модель: {settings['model']}\n"
+            f"🌡 Температура: {settings['temperature']}\n"
+            f"📊 Макс. токенов: {settings['max_tokens']}\n"
+            f"🔗 Ассистент: {'Включен' if settings['use_assistant'] else 'Выключен'}"
         )
         
         if isinstance(update, Update):
@@ -213,4 +228,5 @@ class SettingsHandler:
                 CUSTOM_MODEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_custom_model)],
             },
             fallbacks=[CallbackQueryHandler(self.settings_menu, pattern="^close$")],
+            per_message=True
         )

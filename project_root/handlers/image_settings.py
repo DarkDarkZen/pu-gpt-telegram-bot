@@ -37,7 +37,8 @@ class ImageSettingsHandler:
             "anime": "Аниме"
         }
 
-    async def get_or_create_settings(self, user_id: int) -> ImageSettings:
+    async def get_or_create_settings(self, user_id: int) -> dict:
+        """Get or create image settings"""
         with Session() as session:
             user = session.query(User).filter_by(telegram_id=user_id).first()
             if not user:
@@ -45,12 +46,24 @@ class ImageSettingsHandler:
                 session.add(user)
                 session.commit()
             
-            settings = user.image_settings
+            settings = session.query(ImageSettings).filter_by(user_id=user.id).first()
             if not settings:
                 settings = ImageSettings(user_id=user.id)
                 session.add(settings)
                 session.commit()
-            return settings
+            
+            session.refresh(settings)
+            
+            settings_dict = {
+                'base_url': settings.base_url,
+                'model': settings.model,
+                'size': settings.size,
+                'quality': settings.quality,
+                'style': settings.style,
+                'hdr': settings.hdr
+            }
+            
+        return settings_dict
 
     async def image_settings_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show main image settings menu"""
@@ -68,12 +81,12 @@ class ImageSettingsHandler:
         settings = await self.get_or_create_settings(update.effective_user.id)
         text = (
             "🖼 Настройки генерации изображений:\n\n"
-            f"🌐 URL: {settings.base_url}\n"
-            f"🎨 Модель: {settings.model}\n"
-            f"📐 Размер: {settings.size}\n"
-            f"✨ Качество: {settings.quality}\n"
-            f"🎭 Стиль: {settings.style}\n"
-            f"HDR: {'Вкл' if settings.hdr else 'Выкл'}"
+            f"🌐 URL: {settings['base_url']}\n"
+            f"🎨 Модель: {settings['model']}\n"
+            f"📐 Размер: {settings['size']}\n"
+            f"✨ Качество: {settings['quality']}\n"
+            f"🎭 Стиль: {settings['style']}\n"
+            f"HDR: {'Вкл' if settings['hdr'] else 'Выкл'}"
         )
         
         if isinstance(update, Update):
@@ -145,7 +158,7 @@ class ImageSettingsHandler:
         
         with Session() as session:
             settings = await self.get_or_create_settings(query.from_user.id)
-            settings.hdr = not settings.hdr
+            settings['hdr'] = not settings['hdr']
             session.commit()
         
         return await self.image_settings_menu(query, context)
@@ -163,13 +176,13 @@ class ImageSettingsHandler:
             settings = await self.get_or_create_settings(query.from_user.id)
             
             if setting_type == 'model':
-                settings.model = value
+                settings['model'] = value
             elif setting_type == 'size':
-                settings.size = value
+                settings['size'] = value
             elif setting_type == 'quality':
-                settings.quality = value
+                settings['quality'] = value
             elif setting_type == 'style':
-                settings.style = value
+                settings['style'] = value
                 
             session.commit()
         
@@ -205,4 +218,5 @@ class ImageSettingsHandler:
                 ],
             },
             fallbacks=[CallbackQueryHandler(self.image_settings_menu, pattern="^close_image_settings$")],
+            per_message=True
         ) 
