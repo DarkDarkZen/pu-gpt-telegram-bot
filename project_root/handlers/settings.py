@@ -241,15 +241,32 @@ class SettingsHandler:
                 return MAX_TOKENS
             
             with Session() as session:
-                settings = await self.get_or_create_settings(update.effective_user.id)
+                user = session.query(User).filter_by(telegram_id=update.effective_user.id).first()
+                if not user:
+                    user = User(telegram_id=update.effective_user.id)
+                    session.add(user)
+                    session.commit()
+                
+                settings = session.query(UserSettings).filter_by(user_id=user.id).first()
+                if not settings:
+                    settings = UserSettings(user_id=user.id)
+                    session.add(settings)
+                
+                # Update max_tokens directly in the database
                 settings.max_tokens = tokens
                 session.commit()
+                logger.debug(f"Updated max_tokens to {tokens} for user {update.effective_user.id}")
             
             await update.message.reply_text(f"✅ Максимальное количество токенов установлено: {tokens}")
             return await self.settings_menu(update, context)
+            
         except ValueError:
-            await update.message.reply_text("⚠️ Пожалуйста, ввдите целое число")
+            await update.message.reply_text("⚠️ Пожалуйста, введите целое число")
             return MAX_TOKENS
+        except Exception as e:
+            logger.error(f"Error updating max_tokens: {e}", exc_info=True)
+            await update.message.reply_text("❌ Произошла ошибка при установке максимального количества токенов")
+            return await self.settings_menu(update, context)
 
     @log_function_call(logger)
     async def handle_assistant_url(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
