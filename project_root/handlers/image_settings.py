@@ -220,6 +220,9 @@ class ImageSettingsHandler:
             fallbacks=[CallbackQueryHandler(self.image_settings_menu, pattern="^close_image_settings$")],
             allow_reentry=True,
             name="image_settings_conversation",
+            persistent=True,
             per_chat=True,
-            per_user=True
+            per_user=True,
+            per_message=False,
+            conversation_timeout=300  # 5 minutes timeout
         ) 

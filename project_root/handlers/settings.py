@@ -339,6 +339,9 @@ class SettingsHandler:
             ],
             allow_reentry=True,
             name="settings_conversation",
+            persistent=True,
             per_chat=True,
-            per_user=True
+            per_user=True,
+            per_message=False,
+            conversation_timeout=300  # 5 minutes timeout
         )

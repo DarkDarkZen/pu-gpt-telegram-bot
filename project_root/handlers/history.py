@@ -107,8 +107,11 @@ class HistoryHandler:
             fallbacks=[CallbackQueryHandler(self.cancel, pattern="^cancel$")],
             allow_reentry=True,
             name="history_conversation",
+            persistent=True,
             per_chat=True,
-            per_user=True
+            per_user=True,
+            per_message=False,
+            conversation_timeout=300  # 5 minutes timeout
         )
 
     async def save_message(self, user_id: int, content: str):
