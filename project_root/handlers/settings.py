@@ -62,8 +62,10 @@ class SettingsHandler:
     @log_function_call(logger)
     async def settings_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show main settings menu"""
-        user_id = update.effective_user.id
+        # Get user_id correctly depending on update type
+        user_id = update.effective_user.id if not isinstance(update, CallbackQuery) else update.from_user.id
         logger.info(f"Showing settings menu for user {user_id}")
+        
         keyboard = [
             [InlineKeyboardButton("📝 Базовый URL", callback_data="edit_base_url")],
             [InlineKeyboardButton("🤖 Выбор модели", callback_data="select_model")],
@@ -85,9 +87,9 @@ class SettingsHandler:
         )
         
         try:
-            if update.callback_query:
+            if isinstance(update, CallbackQuery):
                 # If this is a callback query, edit the existing message
-                await update.callback_query.edit_message_text(
+                await update.edit_message_text(
                     text=text,
                     reply_markup=reply_markup
                 )
@@ -101,8 +103,8 @@ class SettingsHandler:
             logger.error(f"Error in settings_menu: {e}", exc_info=True)
             # Handle the error gracefully
             error_message = "❌ Произошла ошибка при отображении настроек. Попробуйте еще раз /settings"
-            if update.callback_query:
-                await update.callback_query.message.reply_text(error_message)
+            if isinstance(update, CallbackQuery):
+                await update.message.reply_text(error_message)
             else:
                 await update.message.reply_text(error_message)
         
@@ -150,12 +152,12 @@ class SettingsHandler:
                 session.commit()
                 logger.debug(f"Updated model to {model} for user {query.from_user.id}")
             
-            return await self.settings_menu(query, context)
+            return await self.settings_menu(update.callback_query, context)
             
         except Exception as e:
             logger.error(f"Error updating model: {e}", exc_info=True)
             await query.message.reply_text("❌ Произошла ошибка при обновлении модели")
-            return await self.settings_menu(query, context)
+            return await self.settings_menu(update.callback_query, context)
 
     @log_function_call(logger)
     async def temperature_selection(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
