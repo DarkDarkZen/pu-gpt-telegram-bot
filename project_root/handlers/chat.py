@@ -10,6 +10,8 @@ from typing import Optional
 import aiohttp
 from io import BytesIO
 from utils.logging_config import setup_logging, log_function_call
+from PIL import Image
+import io
 
 # Initialize logging with just the filename
 logger = setup_logging(__name__, 'chat.log')
@@ -223,17 +225,30 @@ class ChatHandler:
             # Get the largest photo version
             photo = update.message.photo[-1]
             
+            # Check file size
+            if photo.file_size > 4 * 1024 * 1024:  # 4 MB in bytes
+                await response_message.edit_text("❌ Размер изображения должен быть меньше 4 МБ")
+                return
+            
             # Download the photo
             photo_file = await context.bot.get_file(photo.file_id)
-            photo_bytes = await photo_file.download_as_bytearray()
             
-            # Convert bytearray to BytesIO
-            image_data = BytesIO(photo_bytes)
-            image_data.name = 'image.png'  # OpenAI needs a filename
+            # Create a BytesIO object for the image
+            import io
+            
+            # Download image data
+            photo_data = await photo_file.download_as_bytearray()
+            image = Image.open(io.BytesIO(photo_data))
+            
+            # Convert to PNG and optimize
+            output = io.BytesIO()
+            image.save(output, format='PNG', optimize=True)
+            output.seek(0)
+            output.name = 'image.png'
             
             # Generate variation
             response = await self.openai_client.images.create_variation(
-                image=image_data,  # Pass BytesIO object instead of bytearray
+                image=output,
                 model=settings.model,
                 n=1,
                 size=settings.size
