@@ -81,6 +81,7 @@ class ChatHandler:
         )
         collected_chunks = []
         last_message = ""
+        error_message = "❌ Произошла ошибка при генерации ответа"  # Define error message
         
         try:
             # Get user settings (will create default settings if none exist)
@@ -91,10 +92,7 @@ class ChatHandler:
             
             if settings['use_assistant'] and settings['assistant_url']:
                 # TODO: Implement custom assistant API call
-                await response_message.edit_text(
-                    "🤖 Режим ассистента пока не реализован",
-                    reply_to_message_id=update.message.message_id
-                )
+                await response_message.edit_text("🤖 Режим ассистента пока не реализован")
                 return
             
             # Start streaming response using processed text
@@ -114,10 +112,7 @@ class ChatHandler:
                         current_response = ''.join(collected_chunks)
                         if current_response != last_message:  # Only update if content changed
                             try:
-                                await response_message.edit_text(
-                                    current_response,
-                                    reply_to_message_id=update.message.message_id
-                                )
+                                await response_message.edit_text(current_response)
                                 last_message = current_response
                             except Exception as e:
                                 if "Message is not modified" not in str(e):
@@ -128,10 +123,7 @@ class ChatHandler:
             final_response = ''.join(collected_chunks)
             if final_response != last_message:
                 try:
-                    await response_message.edit_text(
-                        final_response,
-                        reply_to_message_id=update.message.message_id
-                    )
+                    await response_message.edit_text(final_response)
                     # Save bot's response to history
                     await self.history_handler.save_message(
                         update.effective_user.id,
@@ -141,18 +133,12 @@ class ChatHandler:
                 except Exception as e:
                     if "Message is not modified" not in str(e):
                         logger.error(f"Error in final update: {e}")
-                        await response_message.edit_text(
-                            error_message,
-                            reply_to_message_id=update.message.message_id
-                        )
+                        await response_message.edit_text(error_message)
             
         except Exception as e:
             error_message = f"❌ Произошла ошибка: {str(e)}"
             logger.error(error_message)
-            await response_message.edit_text(
-                error_message,
-                reply_to_message_id=update.message.message_id
-            )
+            await response_message.edit_text(error_message)
 
     async def handle_image_generation(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle image generation request"""
