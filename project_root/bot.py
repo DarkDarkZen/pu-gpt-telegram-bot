@@ -113,21 +113,37 @@ class TelegramBot:
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle incoming messages"""
+        # Check if message exists
+        if not update.message or not update.message.text:
+            return
+
+        # Get bot's username
+        bot_username = context.bot.username
+        message_text = update.message.text
+
         # Check if message is meant for bot (direct message or mention in group)
-        if update.effective_chat.type != "private":
-            # In groups, only respond to messages that mention the bot
-            if not update.message.text:
+        if update.effective_chat.type not in ["private", "channel"]:
+            # Check if message mentions the bot
+            is_for_bot = False
+            
+            # Check for direct mention at start
+            if message_text.startswith(f"@{bot_username}"):
+                is_for_bot = True
+                message_text = message_text.replace(f"@{bot_username}", "", 1).strip()
+            
+            # Check for mentions in entities
+            elif update.message.entities:
+                for entity in update.message.entities:
+                    if entity.type == "mention":
+                        mention = message_text[entity.offset:entity.offset + entity.length]
+                        if mention == f"@{bot_username}":
+                            is_for_bot = True
+                            message_text = message_text.replace(mention, "").strip()
+                            break
+            
+            # If message is not for this bot, ignore it
+            if not is_for_bot:
                 return
-                
-            bot_username = context.bot.username
-            if not any(entity.type == "mention" for entity in update.message.entities or []) and \
-               not update.message.text.startswith(f"@{bot_username}"):
-                return
-                
-            # Remove bot mention from message
-            message_text = update.message.text.replace(f"@{bot_username}", "").strip()
-        else:
-            message_text = update.message.text
 
         # Save message to history
         await self.history_handler.save_message(
