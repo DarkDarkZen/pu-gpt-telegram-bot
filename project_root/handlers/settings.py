@@ -340,7 +340,7 @@ class SettingsHandler:
         """Start assistant URL input process"""
         query = update.callback_query
         await query.answer()
-        await query.edit_message_text("Вве��ите URL ассистента:")
+        await query.edit_message_text("Ввеите URL ассистента:")
         return ASSISTANT_URL
 
     @log_function_call(logger)
@@ -381,6 +381,7 @@ class SettingsHandler:
                     CallbackQueryHandler(self.handle_base_url_start, pattern="^edit_base_url$"),
                     CallbackQueryHandler(self.handle_max_tokens_start, pattern="^edit_max_tokens$"),
                     CallbackQueryHandler(self.handle_assistant_url_start, pattern="^edit_assistant_url$"),
+                    CallbackQueryHandler(self.cancel, pattern="^close$"),
                 ],
                 MODEL_SELECTION: [
                     CallbackQueryHandler(self.handle_model_selection, pattern="^model_"),
@@ -409,7 +410,6 @@ class SettingsHandler:
                 ],
             },
             fallbacks=[
-                CallbackQueryHandler(self.settings_menu, pattern="^close$"),
                 CommandHandler('cancel', self.cancel),
             ],
             allow_reentry=True,
