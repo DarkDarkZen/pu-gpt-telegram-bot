@@ -22,7 +22,7 @@ class SettingsHandler:
             "gpt-3.5-turbo": "GPT-3.5 Turbo",
             "gpt-4": "GPT-4",
             "gpt-4-turbo": "GPT-4 Turbo",
-            "claude-3-sonnet": "Claude-3 Sonnet"
+            "gpt-4o-mini": "GPT-4o-mini"
         }
 
     @log_function_call(logger)
