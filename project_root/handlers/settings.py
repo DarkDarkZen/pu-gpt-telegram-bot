@@ -340,7 +340,7 @@ class SettingsHandler:
         """Start assistant URL input process"""
         query = update.callback_query
         await query.answer()
-        await query.edit_message_text("Введите URL ассистента:")
+        await query.edit_message_text("Вве��ите URL ассистента:")
         return ASSISTANT_URL
 
     @log_function_call(logger)
@@ -358,11 +358,16 @@ class SettingsHandler:
         if query:
             await query.answer()
             try:
-                await query.edit_message_text("Настройки закрыты")
+                # Удаляем сообщение с меню вместо редактирования
+                await query.message.delete()
             except telegram.error.BadRequest as e:
-                if "Message is not modified" not in str(e):
-                    raise
-                # If message is the same, just close the conversation
+                logger.error(f"Error deleting message: {e}")
+                # Если не удалось удалить, пробуем отредактировать
+                try:
+                    await query.edit_message_text("Настройки закрыты")
+                except telegram.error.BadRequest as e:
+                    if "Message is not modified" not in str(e):
+                        raise
         return ConversationHandler.END
 
     def get_conversation_handler(self):
