@@ -145,8 +145,8 @@ class TelegramBot:
         
         # Handle regular text messages with streaming response
         if message_text:
-            # Update the message text to remove bot mention
-            update.message.text = message_text
+            # Store the processed text in context instead of modifying the message
+            context.user_data['processed_text'] = message_text
             await self.chat_handler.stream_openai_response(update, context)
         
         # Handle image variations

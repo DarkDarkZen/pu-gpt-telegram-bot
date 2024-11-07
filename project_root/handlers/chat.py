@@ -71,9 +71,8 @@ class ChatHandler:
     @log_function_call(logger)
     async def stream_openai_response(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle streaming chat response"""
-        user_id = update.effective_user.id
-        logger.info(f"Processing message from user {user_id}")
-        logger.debug(f"Message content: {update.message.text}")
+        # Get the processed text from context
+        message_text = context.user_data.get('processed_text', update.message.text)
         
         # Initial response message
         response_message = await update.message.reply_text("⌛ Генерирую ответ...")
@@ -92,10 +91,10 @@ class ChatHandler:
                 await response_message.edit_text("🤖 Режим ассистента пока не реализован")
                 return
             
-            # Start streaming response
+            # Start streaming response using processed text
             stream = await self.openai_client.chat.completions.create(
                 model=settings['model'],
-                messages=[{"role": "user", "content": update.message.text}],
+                messages=[{"role": "user", "content": message_text}],
                 temperature=settings['temperature'],
                 max_tokens=settings['max_tokens'],
                 stream=True
