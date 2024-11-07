@@ -113,23 +113,40 @@ class TelegramBot:
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle incoming messages"""
+        # Check if message is meant for bot (direct message or mention in group)
+        if update.effective_chat.type != "private":
+            # In groups, only respond to messages that mention the bot
+            if not update.message.text:
+                return
+                
+            bot_username = context.bot.username
+            if not any(entity.type == "mention" for entity in update.message.entities or []) and \
+               not update.message.text.startswith(f"@{bot_username}"):
+                return
+                
+            # Remove bot mention from message
+            message_text = update.message.text.replace(f"@{bot_username}", "").strip()
+        else:
+            message_text = update.message.text
+
         # Save message to history
         await self.history_handler.save_message(
             update.effective_user.id,
-            update.message.text or "(изображение)"
+            message_text or "(изображение)"
         )
         
         # Handle image generation if message starts with /image
-        if update.message.text and update.message.text.startswith('/image '):
-            prompt = update.message.text[7:].strip()  # Remove '/image ' prefix
+        if message_text and message_text.startswith('/image '):
+            prompt = message_text[7:].strip()  # Remove '/image ' prefix
             if prompt:
-                # Create a new context variable for the prompt instead of modifying message
                 context.user_data['image_prompt'] = prompt
                 await self.chat_handler.handle_image_generation(update, context)
                 return
         
         # Handle regular text messages with streaming response
-        if update.message.text:
+        if message_text:
+            # Update the message text to remove bot mention
+            update.message.text = message_text
             await self.chat_handler.stream_openai_response(update, context)
         
         # Handle image variations
