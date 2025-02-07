@@ -30,44 +30,69 @@ class TelegramBot:
         except Exception as e:
             logger.warning(f"Could not create directories: {e}")
         
-        load_dotenv()
+        # Load environment variables
+        if os.path.exists('.env'):
+            logger.debug("Loading .env file")
+            load_dotenv()
+        else:
+            logger.debug("No .env file found, using system environment variables")
+        
+        # Debug: Print all environment variables (excluding sensitive data)
+        env_vars = {k: '***' if 'TOKEN' in k or 'KEY' in k else v for k, v in os.environ.items()}
+        logger.debug(f"Environment variables: {env_vars}")
+        
         # Try both possible environment variable names
         self.token = os.getenv('TELEGRAM_BOT_TOKEN') or os.getenv('TELEGRAM_TOKEN')
         if not self.token:
+            logger.error("Telegram bot token not found in environment variables")
+            logger.debug(f"Available environment variables: {list(os.environ.keys())}")
             raise ValueError(
                 "Telegram bot token not found in environment variables. "
                 "Please set either TELEGRAM_BOT_TOKEN or TELEGRAM_TOKEN in your Railway.app environment variables "
                 "or .env file."
             )
+        else:
+            logger.debug("Telegram bot token found")
         
-        # Initialize persistence and job queue
-        persistence = PicklePersistence(
-            filepath="data/conversation_data",
-            update_interval=30
-        )
+        try:
+            # Initialize persistence with Railway-friendly path
+            persistence_path = os.path.join(os.getcwd(), 'data', 'conversation_data')
+            logger.debug(f"Setting persistence path to: {persistence_path}")
+            persistence = PicklePersistence(
+                filepath=persistence_path,
+                update_interval=30
+            )
             
-        self.application = (
-            Application.builder()
-            .token(self.token)
-            .persistence(persistence)
-            .concurrent_updates(True)
-            .build()
-        )
-        
-        # Initialize job queue
-        self.application.job_queue.scheduler.start()
-        
-        # Initialize handlers
-        self.history_handler = HistoryHandler()
-        self.settings_handler = SettingsHandler()
-        self.image_settings_handler = ImageSettingsHandler()
-        self.chat_handler = ChatHandler(history_handler=self.history_handler)
-        
-        self._running = False
-        self._offset = None
-        
-        # Add error handler
-        self.application.add_error_handler(self.error_handler)
+            self.application = (
+                Application.builder()
+                .token(self.token)
+                .persistence(persistence)
+                .concurrent_updates(True)
+                .build()
+            )
+            logger.debug("Application built successfully")
+            
+            # Initialize job queue
+            self.application.job_queue.scheduler.start()
+            logger.debug("Job queue initialized")
+            
+            # Initialize handlers
+            self.history_handler = HistoryHandler()
+            self.settings_handler = SettingsHandler()
+            self.image_settings_handler = ImageSettingsHandler()
+            self.chat_handler = ChatHandler(history_handler=self.history_handler)
+            logger.debug("All handlers initialized")
+            
+            self._running = False
+            self._offset = None
+            
+            # Add error handler
+            self.application.add_error_handler(self.error_handler)
+            logger.debug("Error handler added")
+            
+        except Exception as e:
+            logger.error(f"Error during bot initialization: {str(e)}", exc_info=True)
+            raise
     
     async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle errors"""
