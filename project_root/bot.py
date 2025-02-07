@@ -31,9 +31,14 @@ class TelegramBot:
             logger.warning(f"Could not create directories: {e}")
         
         load_dotenv()
-        self.token = os.getenv('TELEGRAM_TOKEN')
+        # Try both possible environment variable names
+        self.token = os.getenv('TELEGRAM_BOT_TOKEN') or os.getenv('TELEGRAM_TOKEN')
         if not self.token:
-            raise ValueError("TELEGRAM_TOKEN not found in environment variables")
+            raise ValueError(
+                "Telegram bot token not found in environment variables. "
+                "Please set either TELEGRAM_BOT_TOKEN or TELEGRAM_TOKEN in your Railway.app environment variables "
+                "or .env file."
+            )
         
         # Initialize persistence and job queue
         persistence = PicklePersistence(
