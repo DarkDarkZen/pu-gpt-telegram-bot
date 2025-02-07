@@ -6,6 +6,9 @@ import logging
 from utils.logging_config import setup_logging, log_function_call
 import os
 import telegram.error
+import json
+from io import BytesIO
+import aiohttp
 
 # States for text model settings conversation
 (MAIN_MENU, MODEL_SETTINGS, BASE_URL, MODEL_SELECTION, 
@@ -420,3 +423,108 @@ class SettingsHandler:
             per_message=False,
             conversation_timeout=300  # 5 minutes timeout
         )
+
+    async def handle_setting_update(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle settings updates"""
+        # Existing code...
+
+    async def export_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Export user settings to JSON"""
+        user_id = update.effective_user.id
+        
+        with Session() as session:
+            user = session.query(User).filter_by(telegram_id=user_id).first()
+            if not user:
+                await update.message.reply_text("❌ Настройки не найдены.")
+                return
+
+            # Get text and image settings
+            text_settings = session.query(UserSettings).filter_by(user_id=user.id).first()
+            image_settings = session.query(ImageSettings).filter_by(user_id=user.id).first()
+
+            if not text_settings and not image_settings:
+                await update.message.reply_text("❌ Настройки не найдены.")
+                return
+
+            # Create settings dictionary
+            settings_dict = {
+                "text_settings": text_settings.to_dict() if text_settings else None,
+                "image_settings": image_settings.to_dict() if image_settings else None
+            }
+
+            # Convert to JSON and send as file
+            settings_json = json.dumps(settings_dict, indent=2, ensure_ascii=False)
+            await update.message.reply_document(
+                document=BytesIO(settings_json.encode()),
+                filename=f"settings_{user_id}.json",
+                caption="📤 Ваши настройки экспортированы."
+            )
+
+    async def import_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Import user settings from JSON file"""
+        if not update.message.document:
+            await update.message.reply_text(
+                "❌ Пожалуйста, отправьте файл настроек в формате JSON."
+            )
+            return
+
+        try:
+            file = await context.bot.get_file(update.message.document.file_id)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(file.file_path) as response:
+                    if response.status != 200:
+                        await update.message.reply_text("❌ Ошибка при загрузке файла.")
+                        return
+                    settings_json = await response.text()
+
+            # Parse settings
+            settings_dict = json.loads(settings_json)
+            user_id = update.effective_user.id
+
+            with Session() as session:
+                user = session.query(User).filter_by(telegram_id=user_id).first()
+                if not user:
+                    user = User(telegram_id=user_id)
+                    session.add(user)
+                    session.commit()
+
+                # Update text settings
+                if settings_dict.get("text_settings"):
+                    text_settings = session.query(UserSettings).filter_by(user_id=user.id).first()
+                    if not text_settings:
+                        text_settings = UserSettings(user_id=user.id)
+                        session.add(text_settings)
+                    
+                    for key, value in settings_dict["text_settings"].items():
+                        if hasattr(text_settings, key):
+                            setattr(text_settings, key, value)
+
+                # Update image settings
+                if settings_dict.get("image_settings"):
+                    image_settings = session.query(ImageSettings).filter_by(user_id=user.id).first()
+                    if not image_settings:
+                        image_settings = ImageSettings(user_id=user.id)
+                        session.add(image_settings)
+                    
+                    for key, value in settings_dict["image_settings"].items():
+                        if hasattr(image_settings, key):
+                            setattr(image_settings, key, value)
+
+                session.commit()
+
+            await update.message.reply_text("✅ Настройки успешно импортированы.")
+
+        except json.JSONDecodeError:
+            await update.message.reply_text("❌ Неверный формат файла JSON.")
+        except Exception as e:
+            logger.error(f"Error importing settings: {e}")
+            await update.message.reply_text(f"❌ Ошибка при импорте настроек: {str(e)}")
+
+    def get_handlers(self):
+        """Return handlers for settings management"""
+        return [
+            CommandHandler("settings", self.show_settings_menu),
+            CommandHandler("export_settings", self.export_settings),
+            CommandHandler("import_settings", self.import_settings),
+            # ... existing handlers ...
+        ]

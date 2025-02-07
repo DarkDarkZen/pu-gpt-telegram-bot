@@ -113,15 +113,17 @@ class TelegramBot:
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle incoming messages"""
+        logger.debug(f"Received message: {update.message.text}")
+        
         # Check if message exists
-        if not update.message or not update.message.text:
+        if not update.message:
             return
 
-        # Get bot's username
+        # Get bot's username and message text
         bot_username = context.bot.username
-        message_text = update.message.text
+        message_text = update.message.text if update.message.text else ""
 
-        # Check if message is meant for bot (direct message or mention in group)
+        # Check if message is meant for bot in group chats
         if update.effective_chat.type not in ["private", "channel"]:
             # Check if message mentions the bot
             is_for_bot = False
@@ -144,30 +146,52 @@ class TelegramBot:
             # If message is not for this bot, ignore it
             if not is_for_bot:
                 return
-
-        # Save message to history
-        await self.history_handler.save_message(
-            update.effective_user.id,
-            message_text or "(изображение)"
-        )
         
-        # Handle image generation if message starts with /image
-        if message_text and message_text.startswith('/image '):
-            prompt = message_text[7:].strip()  # Remove '/image ' prefix
-            if prompt:
-                context.user_data['image_prompt'] = prompt
-                await self.chat_handler.handle_image_generation(update, context)
+        try:
+            # Save user message to history
+            await self.history_handler.save_message(
+                update.effective_user.id,
+                message_text or "(изображение)",
+                role='user'
+            )
+            
+            # If message is a reply to bot's message and contains an image
+            if (update.message.reply_to_message and 
+                update.message.reply_to_message.from_user.id == context.bot.id):
+                if update.message.photo:
+                    # Handle image variation request
+                    await self.chat_handler.handle_image_variation(update, context)
+                    return
+                elif update.message.reply_to_message.photo:
+                    # Handle combined image and text generation
+                    await self.chat_handler.handle_combined_image_generation(update, context)
+                    return
+            
+            # Handle image generation if message starts with /image
+            if message_text and message_text.startswith('/image '):
+                prompt = message_text[7:].strip()  # Remove '/image ' prefix
+                if prompt:
+                    context.user_data['image_prompt'] = prompt
+                    await self.chat_handler.handle_image_generation(update, context)
+                    return
+            
+            # If message contains an image
+            if update.message.photo:
+                # Store the prompt in context for image generation
+                context.user_data['image_prompt'] = update.message.caption or "Generate an image variation"
+                await self.chat_handler.handle_image_variation(update, context)
                 return
-        
-        # Handle regular text messages with streaming response
-        if message_text:
-            # Store the processed text in context instead of modifying the message
+            
+            # Store the processed text in context
             context.user_data['processed_text'] = message_text
+            
+            # Handle text messages with streaming response
             await self.chat_handler.stream_openai_response(update, context)
-        
-        # Handle image variations
-        if update.message.photo:
-            await self.chat_handler.handle_image_variation(update, context)
+            
+        except Exception as e:
+            error_message = f"❌ Произошла ошибка: {str(e)}"
+            logger.error(error_message)
+            await update.message.reply_text(error_message)
 
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /help command"""

@@ -292,3 +292,78 @@ class ChatHandler:
             error_message = f"❌ Произошла ошибка при создании вариации: {str(e)}"
             logger.error(error_message)
             await response_message.edit_text(error_message)
+
+    async def handle_combined_image_generation(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle image generation with both image and text input"""
+        if not update.message.reply_to_message or not update.message.reply_to_message.photo:
+            await update.message.reply_text(
+                "❌ Пожалуйста, ответьте на сообщение с изображением и добавьте текстовое описание."
+            )
+            return
+
+        # Get the image
+        photo = update.message.reply_to_message.photo[-1]  # Get the largest size
+        image_file = await context.bot.get_file(photo.file_id)
+        
+        # Get the text prompt
+        text_prompt = update.message.text
+
+        try:
+            # Get user settings
+            settings = await self.get_image_settings(update.effective_user.id)
+            if not settings:
+                await update.message.reply_text("❌ Настройки изображения не найдены.")
+                return
+
+            # Download the image
+            async with aiohttp.ClientSession() as session:
+                async with session.get(image_file.file_path) as response:
+                    if response.status != 200:
+                        await update.message.reply_text("❌ Ошибка при загрузке изображения.")
+                        return
+                    image_data = await response.read()
+
+            # Process image to correct format if needed
+            image = Image.open(io.BytesIO(image_data))
+            output = io.BytesIO()
+            image.save(output, format='PNG')
+            output.seek(0)
+
+            # Send initial message
+            processing_message = await update.message.reply_text(
+                "🎨 Генерирую изображение на основе фото и текста...",
+                reply_to_message_id=update.message.message_id
+            )
+
+            # Create image variation with text prompt
+            response = await self.openai_client.images.create_variation(
+                image=output,
+                model=settings.model,
+                n=1,
+                size=settings.size,
+                quality=settings.quality,
+                style=settings.style,
+                prompt=text_prompt  # Include the text prompt
+            )
+
+            # Send the generated image
+            image_url = response.data[0].url
+            async with aiohttp.ClientSession() as session:
+                async with session.get(image_url) as response:
+                    if response.status == 200:
+                        image_data = await response.read()
+                        await update.message.reply_photo(
+                            photo=BytesIO(image_data),
+                            caption=f"🎨 Сгенерированное изображение на основе фото и текста:\n{text_prompt}"
+                        )
+                    else:
+                        await update.message.reply_text("❌ Ошибка при получении сгенерированного изображения.")
+
+            # Delete processing message
+            await processing_message.delete()
+
+        except Exception as e:
+            logger.error(f"Error in combined image generation: {e}")
+            await update.message.reply_text(
+                f"❌ Произошла ошибка при генерации изображения: {str(e)}"
+            )
