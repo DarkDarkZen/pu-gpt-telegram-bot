@@ -420,7 +420,7 @@ class SettingsHandler:
             persistent=True,
             per_chat=True,
             per_user=True,
-            per_message=False,
+            per_message=True,
             conversation_timeout=300  # 5 minutes timeout
         )
 

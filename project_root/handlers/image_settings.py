@@ -308,44 +308,40 @@ class ImageSettingsHandler:
             entry_points=[CommandHandler('image_settings', self.image_settings_menu)],
             states={
                 IMAGE_MAIN_MENU: [
-                    CallbackQueryHandler(self.handle_base_url_start, pattern="^edit_image_base_url$"),
                     CallbackQueryHandler(self.select_image_model, pattern="^select_image_model$"),
                     CallbackQueryHandler(self.select_image_size, pattern="^select_image_size$"),
                     CallbackQueryHandler(self.select_image_quality, pattern="^select_image_quality$"),
                     CallbackQueryHandler(self.select_image_style, pattern="^select_image_style$"),
-                    CallbackQueryHandler(self.toggle_hdr, pattern="^toggle_hdr$"),
-                    CallbackQueryHandler(self.cancel, pattern="^close_image_settings$"),
-                ],
-                IMAGE_BASE_URL: [
-                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_base_url),
-                    CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_menu$"),
+                    CallbackQueryHandler(self.handle_setting_update, pattern="^toggle_hdr$"),
                 ],
                 IMAGE_MODEL: [
                     CallbackQueryHandler(self.handle_setting_update, pattern="^set_model_"),
-                    CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_menu$"),
+                    CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_settings$"),
                 ],
                 IMAGE_SIZE: [
                     CallbackQueryHandler(self.handle_setting_update, pattern="^set_size_"),
-                    CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_menu$"),
+                    CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_settings$"),
                 ],
                 IMAGE_QUALITY: [
                     CallbackQueryHandler(self.handle_setting_update, pattern="^set_quality_"),
-                    CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_menu$"),
+                    CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_settings$"),
                 ],
                 IMAGE_STYLE: [
                     CallbackQueryHandler(self.handle_setting_update, pattern="^set_style_"),
-                    CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_menu$"),
+                    CallbackQueryHandler(self.image_settings_menu, pattern="^back_to_image_settings$"),
                 ],
             },
-            fallbacks=[CallbackQueryHandler(self.cancel, pattern="^close_image_settings$")],
+            fallbacks=[
+                CallbackQueryHandler(self.image_settings_menu, pattern="^close_image_settings$"),
+            ],
             allow_reentry=True,
             name="image_settings_conversation",
             persistent=True,
             per_chat=True,
             per_user=True,
-            per_message=False,
+            per_message=True,
             conversation_timeout=300  # 5 minutes timeout
-        ) 
+        )
 
     async def cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Cancel and close settings menu"""

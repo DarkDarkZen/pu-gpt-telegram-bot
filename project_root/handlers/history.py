@@ -94,24 +94,20 @@ class HistoryHandler:
     def get_conversation_handler(self):
         """Return conversation handler for history management"""
         return ConversationHandler(
-            entry_points=[CommandHandler('history', self.show_history)],
+            entry_points=[CommandHandler('clear_history', self.show_clear_history_menu)],
             states={
-                HISTORY_MENU: [
-                    CallbackQueryHandler(self.confirm_clear, pattern="^clear_history$"),
-                    CallbackQueryHandler(self.cancel, pattern="^close_history$"),
-                ],
                 CONFIRM_CLEAR: [
-                    CallbackQueryHandler(self.clear_history, pattern="^confirm_clear_yes$"),
-                    CallbackQueryHandler(self.cancel, pattern="^confirm_clear_no$"),
+                    CallbackQueryHandler(self.handle_clear_history, pattern="^clear_"),
+                    CallbackQueryHandler(self.cancel_clear, pattern="^cancel_clear$"),
                 ],
             },
-            fallbacks=[CallbackQueryHandler(self.cancel, pattern="^cancel$")],
+            fallbacks=[CommandHandler('cancel', self.cancel_clear)],
             allow_reentry=True,
             name="history_conversation",
             persistent=True,
             per_chat=True,
             per_user=True,
-            per_message=False,
+            per_message=True,
             conversation_timeout=300  # 5 minutes timeout
         )
 
